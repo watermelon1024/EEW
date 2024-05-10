@@ -1,9 +1,10 @@
 import math
-
-from earthquake.eew import EarthquakeData
+from typing import TYPE_CHECKING
 
 from ..location import REGIONS, Location
 
+if TYPE_CHECKING:
+    from ..eew import EarthquakeData
 EARTH_RADIUS = 6371.008
 
 
@@ -32,7 +33,7 @@ def _calculate_surface_distance(p1: Location, p2: Location) -> float:
     return d
 
 
-def _calculate_distance(earthquake: EarthquakeData, location: Location) -> tuple[float, float]:
+def _calculate_distance(earthquake: "EarthquakeData", location: Location) -> tuple[float, float]:
     """
     Calculate the surface and actual distances from the hypocenter to the specific location.
 
@@ -118,7 +119,7 @@ def calculate_rigon_intensity(
 
 
 def calculate_expected_intensity(
-    earthquake: EarthquakeData, regions: list = None
+    earthquake: "EarthquakeData", regions: list = None
 ) -> dict[int, int]:
     """
     Calculate the expected intensity of the earthquake in different regions.

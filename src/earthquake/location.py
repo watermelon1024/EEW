@@ -91,7 +91,7 @@ class RegionLocation(Location):
     Represents a region with longitude, latitude, region code and name.
     """
 
-    __slots__ = ("_longitude", "_latitude", "_code", "_name")
+    __slots__ = ("_longitude", "_latitude", "_code", "_name", "_city", "_area", "_site_effect")
 
     def __init__(
         self,
@@ -170,15 +170,17 @@ class RegionLocation(Location):
         return f"RegionLocation({self._name} at ({self._longitude}, {self._latitude})"
 
 
-def _parse_region_dict(data: dict[str, dict[str, int | float | str]]) -> dict[int, RegionLocation]:
+def _parse_region_dict(
+    data: dict[str, dict[str, dict[str, int | float | str]]]
+) -> dict[int, RegionLocation]:
     all_regions = {}
     for city, regoins in data.items():
         for name, d in regoins.items():
             all_regions[d["code"]] = RegionLocation(
-                d["lon"], d["lat"], d["code"], name, city, d["area"], d["site_effect"]
+                d["lon"], d["lat"], d["code"], name, city, d.get("area"), d.get("site")
             )
     return all_regions
 
 
-with open("../asset/region.json", "r", encoding="utf-8") as f:
+with open("./src/asset/region.json", "r", encoding="utf-8") as f:
     REGIONS: dict[int, RegionLocation] = _parse_region_dict(json.load(f))

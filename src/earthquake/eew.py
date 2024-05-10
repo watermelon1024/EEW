@@ -159,6 +159,6 @@ class EEW:
         return cls(
             id=data["id"],
             earthquake=EarthquakeData.from_dict(data=data["eq"]),
-            provider=data["provider"],
+            provider=data["author"],
             time=datetime.fromtimestamp(data["time"] / 1000),
         )
