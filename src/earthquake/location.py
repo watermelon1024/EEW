@@ -1,5 +1,7 @@
 import json
 
+from ..utils import MISSING
+
 
 class Location:
     """
@@ -66,7 +68,7 @@ class EarthquakeLocation(Location):
 
     __slots__ = ("_longitude", "_latitude", "_display_name")
 
-    def __init__(self, longitude: float, latitude: float, display: str = None):
+    def __init__(self, longitude: float, latitude: float, display: str = MISSING):
         """
         Initialize a earthquake location object.
 
@@ -97,11 +99,11 @@ class RegionLocation(Location):
         self,
         longitude: float,
         latitude: float,
-        code: int = None,
-        name: str = None,
-        city: str = None,
-        area: str = None,
-        site_effect: float = None,
+        code: int,
+        name: str = MISSING,
+        city: str = MISSING,
+        area: str = MISSING,
+        site_effect: float = MISSING,
     ):
         """
         Initialize the region object.
