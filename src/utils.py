@@ -12,5 +12,11 @@ class _Missing:
     def __repr__(self) -> str:
         return "..."
 
+    def __int__(self) -> int:
+        return 0
+
+    def __iter__(self):
+        return iter([])
+
 
 MISSING = _Missing()
