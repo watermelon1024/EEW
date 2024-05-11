@@ -1,5 +1,6 @@
 from datetime import datetime
 
+from ..utils import MISSING
 from .location import EarthquakeLocation
 
 
@@ -8,7 +9,7 @@ class EarthquakeData:
     Represents the data of an earthquake.
     """
 
-    __slots__ = ("_location", "_magnitude", "_depth", "_time")
+    __slots__ = ("_location", "_magnitude", "_depth", "_time", "_max_intensity")
 
     def __init__(
         self,
@@ -16,6 +17,7 @@ class EarthquakeData:
         magnitude: float,
         depth: int,
         time: datetime,
+        max_intensity: int = MISSING,
     ) -> None:
         """
         Initialize an earthquake data object.
@@ -28,16 +30,19 @@ class EarthquakeData:
         :type depth: int
         :param time: The time when earthquake happened.
         :type time: datetime
+        :param max_intensity: The maximum intensity of the earthquake.
+        :type max_intensity: int
         """
         self._location = location
         self._magnitude = magnitude
         self._depth = depth
         self._time = time
+        self._max_intensity = max_intensity
 
     @property
     def location(self) -> EarthquakeLocation:
         """
-        The location of the earthquake.
+        The location object of the earthquake.
         """
         return self._location
 
@@ -76,6 +81,13 @@ class EarthquakeData:
         """
         return self._time
 
+    @property
+    def max_intensity(self) -> int:
+        """
+        The maximum intensity of the earthquake.
+        """
+        return self._max_intensity
+
     @classmethod
     def from_dict(cls, data: dict) -> "EarthquakeData":
         """
@@ -87,10 +99,11 @@ class EarthquakeData:
         :rtype: EarthquakeData
         """
         return cls(
-            location=EarthquakeLocation(data["lon"], data["lat"], data.get("loc")),
+            location=EarthquakeLocation(data["lon"], data["lat"], data.get("loc", MISSING)),
             magnitude=data["mag"],
             depth=data["depth"],
             time=datetime.fromtimestamp(data["time"] / 1000),
+            max_intensity=data.get("max", MISSING),
         )
 
 
@@ -99,20 +112,23 @@ class EEW:
     Represents an earthquake early warning event.
     """
 
-    __solts__ = ("_id", "_earthquake", "_provider", "_time")
+    __solts__ = ("_id", "_serial", "_earthquake", "_provider", "_time")
 
     def __init__(
         self,
         id: str,
+        serial: int,
         earthquake: EarthquakeData,
         provider: str,
         time: datetime,
     ) -> None:
         """
-        Initialize an eew event.
+        Initialize an earthquake early warning event.
 
         :param id: The identifier of the EEW.
         :type id: str
+        :param serial: The serial of the EEW.
+        :type serial: int
         :param earthquake: The data of the earthquake.
         :type earthquake: EarthquakeData
         :param provider: The provider of the EEW.
@@ -121,6 +137,7 @@ class EEW:
         :type time: datetime
         """
         self._id = id
+        self._serial = serial
         self._earthquake = earthquake
         self._provider = provider
         self._time = time
@@ -128,21 +145,28 @@ class EEW:
     @property
     def id(self) -> str:
         """
-        The identifier of the earthquake.
+        The identifier of the EEW.
         """
         return self._id
 
     @property
+    def serial(self) -> int:
+        """
+        The serial of the EEW.
+        """
+        return self._serial
+
+    @property
     def earthquake(self) -> EarthquakeData:
         """
-        The data of the earthquake.
+        The earthquake data of the EEW.
         """
         return self._earthquake
 
     @property
     def time(self) -> datetime:
         """
-        The datetime object of the earthquake.
+        The datetime object of the EEW.
         """
         return self._time
 
@@ -158,6 +182,7 @@ class EEW:
         """
         return cls(
             id=data["id"],
+            serial=data["serial"],
             earthquake=EarthquakeData.from_dict(data=data["eq"]),
             provider=data["author"],
             time=datetime.fromtimestamp(data["time"] / 1000),

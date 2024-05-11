@@ -5,15 +5,166 @@ Reference: https://github.com/ExpTechTW/TREM-tauri/blob/main/src/scripts/helper/
 """
 
 import math
+from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
 
 from ..utils import MISSING
-from .location import REGIONS, Location
+from .location import REGIONS, Location, RegionLocation
 
 if TYPE_CHECKING:
     from .eew import EarthquakeData
 
 EARTH_RADIUS = 6371.008
+INTENSITY_DISPLAY = {
+    0: "0",
+    1: "1",
+    2: "2",
+    3: "3",
+    4: "4",
+    5: "5弱",
+    6: "5強",
+    7: "6弱",
+    8: "6強",
+    9: "7",
+}
+
+
+class Intensity:
+    """
+    Represents an intensity.
+    """
+
+    def __init__(self, value: float) -> None:
+        """
+        Initialize the intensity instance.
+
+        :param value: The intensity.
+        :type value: float
+        """
+        self._float_value = value
+        self._value = round_intensity(value)
+        self._display = INTENSITY_DISPLAY[self._value]
+
+    @property
+    def value(self) -> float:
+        """
+        The intensity.
+        """
+        return self._value
+
+    @property
+    def display(self) -> str:
+        """
+        Get the intensity display string.
+        """
+        return self._display
+
+    def __str__(self) -> str:
+        return self._display
+
+    def __repr__(self) -> str:
+        return f"Intensity({self._float_value:.2f})"
+
+
+class Distance:
+    """
+    Represents a distance.
+    """
+
+    def __init__(self, value: float, p_time: datetime, s_time: datetime) -> None:
+        """
+        Initialize the distance instance.
+
+        :param value: The distance.
+        :type value: float
+        :param p_time: P wave arrival time.
+        :type p_time: datetime
+        :param s_time: S wave arrival time.
+        :type s_time: datetime
+        """
+        self._distance = value
+        self._p_time = p_time
+        self._s_time = s_time
+
+    @property
+    def distance(self) -> float:
+        """
+        The distance from the hypocenter.
+        """
+        return self._distance
+
+    @property
+    def p_time(self) -> datetime:
+        """
+        P wave arrival time.
+        """
+        return self._p_time
+
+    @property
+    def s_time(self) -> datetime:
+        """
+        S wave arrival time.
+        """
+        return self._s_time
+
+    def p_left_time(self, now: datetime = MISSING) -> timedelta:
+        """
+        P wave remaining time.
+        """
+        return self._p_time - (now or datetime.now())
+
+    def s_left_time(self, now: datetime = MISSING) -> timedelta:
+        """
+        S wave remaining time.
+        """
+        return self._s_time - (now or datetime.now())
+
+
+class RegionExpectedIntensity:
+    """
+    Represents a region expected intensity.
+    """
+
+    def __init__(self, region: RegionLocation, intensity: Intensity, distance: Distance) -> None:
+        """
+        Initialize the region expected intensity instance.
+
+        :param region: The region.
+        :type region: RegionLocation
+        :param intensity: The intensity.
+        :type intensity: Intensity
+        :param distance: The distance.
+        :type distance: Distance
+        """
+        self._region = region
+        self._intensity = intensity
+        self._distance = distance
+
+    @property
+    def region(self) -> RegionLocation:
+        """
+        The region.
+        """
+        return self._region
+
+    @property
+    def intensity(self) -> Intensity:
+        """
+        The intensity.
+        """
+        return self._intensity
+
+    @property
+    def distance(self) -> Distance:
+        """
+        The distance.
+        """
+        return self._distance
+
+    def __repr__(self) -> str:
+        return (
+            f"RegionExpectedIntensity({self._region}, {self._intensity}, {self._distance.s_time})"
+        )
 
 
 def _calculate_surface_distance(p1: Location, p2: Location) -> float:
@@ -82,8 +233,7 @@ def round_intensity(intensity: float) -> int:
         return 9
 
 
-def calculate_rigon_intensity(
-    surface_distance: float,
+def calculate_reigon_intensity(
     hypocenter_distance: float,
     magnitude: float,
     depth: int,
@@ -92,8 +242,6 @@ def calculate_rigon_intensity(
     """
     Calculate the intensity of the earthquake in a given location.
 
-    :param surface_distance: Surface distance from the epicenter to the specific point in kilometers.
-    :type surface_distance: float
     :param hypocenter_distance: Actual distance from the hypocenter to the specific point in kilometers.
     :type hypocenter_distance: float
     :param magnitude: Magnitude of the earthquake.
@@ -126,40 +274,14 @@ def calculate_rigon_intensity(
     return i
 
 
-def calculate_expected_intensity(
-    earthquake: "EarthquakeData", regions: list = MISSING
-) -> dict[int, int]:
-    """
-    Calculate the expected intensity of the earthquake in different regions.
-
-    :param earthquake: EarthquakeData object containing earthquake information.
-    :type earthquake: EarthquakeData
-    :param regions: List of RegionLocation to calculate. If missing, it will calculate all existing regions.
-    :type regions: list
-    :return: Dictionary containing the expected intensity for each region.
-    :rtype: dict
-    """
-    expected_intensity = {}
-
-    # TODO: Add support for custom external regions
-    for region in regions or REGIONS.values():
-        surface_distance, distance = _calculate_distance(earthquake, region)
-        intensity = calculate_rigon_intensity(
-            surface_distance, distance, earthquake.mag, earthquake.depth
-        )
-        expected_intensity[region.code] = round_intensity(intensity)
-
-    return expected_intensity
-
-
-def calculate_travel_time(depth: int, distance: float) -> tuple[float, float]:
+def calculate_travel_time(depth: int, hypocenter_distance: float) -> tuple[float, float]:
     """
     Calculate the P and S wave travel times based on the earthquake depth and distance.
 
     :param depth: Depth of the earthquake in kilometers.
     :type depth: int
-    :param distance: Actual distance from the hypocenter to the specific point in kilometers.
-    :type distance: float
+    :param hypocenter_distance: Actual distance from the hypocenter to the specific point in kilometers.
+    :type hypocenter_distance: float
     :return: P and S wave travel times.
     :rtype: tuple[float, float]
     """
@@ -170,7 +292,7 @@ def calculate_travel_time(depth: int, distance: float) -> tuple[float, float]:
     else:
         G0, G = 7.804799, 0.004573
     Zc = -1 * (G0 / G)
-    Xb = distance
+    Xb = hypocenter_distance
     Xc = (Xb**2 - 2 * (G0 / G) * Za - Za**2) / (2 * Xb)
 
     Theta_a = math.atan((Za - Zc) / Xc)
@@ -193,9 +315,41 @@ def calculate_travel_time(depth: int, distance: float) -> tuple[float, float]:
     Theta_B_ = math.atan((-1 * Zc_) / (Xb - Xc_))
     s_time = (1 / G_) * math.log(math.tan(Theta_A_ / 2) / math.tan(Theta_B_ / 2))
 
-    if distance / p_time > 7:
-        p_time = distance / 7
-    if distance / s_time > 4:
-        s_time = distance / 4
+    if hypocenter_distance / p_time > 7:
+        p_time = hypocenter_distance / 7
+    if hypocenter_distance / s_time > 4:
+        s_time = hypocenter_distance / 4
 
     return p_time, s_time
+
+
+def calculate_expected_intensity_and_travel_time(
+    earthquake: "EarthquakeData", regions: list[RegionLocation] = MISSING
+) -> dict[int, RegionExpectedIntensity]:
+    """
+    Calculate the expected intensity and travel time of the earthquake in different regions.
+
+    :param earthquake: EarthquakeData object containing earthquake information.
+    :type earthquake: EarthquakeData
+    :param regions: List of RegionLocation to calculate. If missing, it will calculate all existing regions.
+    :type regions: list[RegionLocation]
+    """
+
+    expected_intensity = {}
+
+    for region in regions or REGIONS.values():
+        surface_distance, distance = _calculate_distance(earthquake, region)
+        intensity = calculate_reigon_intensity(distance, earthquake.mag, earthquake.depth)
+        p_time, s_time = calculate_travel_time(earthquake.depth, distance)
+
+        expected_intensity[region.code] = RegionExpectedIntensity(
+            region,
+            Intensity(intensity),
+            Distance(
+                distance,
+                earthquake.time + timedelta(seconds=p_time),
+                earthquake.time + timedelta(seconds=s_time),
+            ),
+        )
+
+    return expected_intensity
