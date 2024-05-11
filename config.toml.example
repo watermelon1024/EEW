@@ -2,6 +2,12 @@
 
 debug-mode = false
 
+[discord]
+channels = [
+    { id = 123456789, mention = "everyone" },
+    { id = 987654321, mention = 56789 },
+]
+
 [log]
 # days of logs to keep
 retention = 30

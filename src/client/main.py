@@ -7,7 +7,7 @@ from ..config import Config
 from ..earthquake.eew import EEW
 from ..earthquake.location import RegionLocation
 from ..logging import InterceptHandler, Logging
-from ..notify.base import NotifyBaseClient
+from ..notify.base import NotificationClient
 from ..utils import MISSING
 
 
@@ -20,7 +20,7 @@ class EEWClient:
         self,
         alert_regions: list[RegionLocation] = MISSING,
         calculate_site_effect: bool = False,
-        notify_client: list[NotifyBaseClient] = MISSING,
+        notify_client: list[NotificationClient] = MISSING,
         api_version: int = 1,
     ) -> None:
         self._alert_regions = alert_regions
