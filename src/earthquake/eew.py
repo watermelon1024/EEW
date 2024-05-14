@@ -3,6 +3,10 @@ from datetime import datetime
 from ..utils import MISSING
 from .location import EarthquakeLocation
 
+PROVIDER_DISPLAY = {
+    "cwa": "中央氣象署",
+}
+
 
 class EarthquakeData:
     """
@@ -107,19 +111,51 @@ class EarthquakeData:
         )
 
 
+class Provider:
+    """
+    Represents the data of an EEW provider.
+    """
+
+    __slots__ = ("_name",)
+
+    def __init__(self, name: str) -> None:
+        """
+        Initialize an EEW provider data object.
+
+        :param name: The name of the provider.
+        :type name: str
+        """
+        self._name = name
+
+    @property
+    def name(self) -> str:
+        """
+        The name of the provider.
+        """
+        return self._name
+
+    @property
+    def display_name(self) -> str:
+        """
+        The display name of the provider.
+        """
+        return PROVIDER_DISPLAY.get(self._name, self._name)
+
+
 class EEW:
     """
     Represents an earthquake early warning event.
     """
 
-    __solts__ = ("_id", "_serial", "_earthquake", "_provider", "_time")
+    __solts__ = ("_id", "_serial", "_final", "_earthquake", "_provider", "_time")
 
     def __init__(
         self,
         id: str,
         serial: int,
+        final: bool,
         earthquake: EarthquakeData,
-        provider: str,
+        provider: Provider,
         time: datetime,
     ) -> None:
         """
@@ -129,15 +165,18 @@ class EEW:
         :type id: str
         :param serial: The serial of the EEW.
         :type serial: int
+        :param final: Whether the EEW is final report.
+        :type final: bool
         :param earthquake: The data of the earthquake.
         :type earthquake: EarthquakeData
         :param provider: The provider of the EEW.
-        :type provider: str
+        :type provider: Provider
         :param time: The time when the EEW published.
         :type time: datetime
         """
         self._id = id
         self._serial = serial
+        self._final = final
         self._earthquake = earthquake
         self._provider = provider
         self._time = time
@@ -184,6 +223,6 @@ class EEW:
             id=data["id"],
             serial=data["serial"],
             earthquake=EarthquakeData.from_dict(data=data["eq"]),
-            provider=data["author"],
+            provider=Provider(data["author"]),
             time=datetime.fromtimestamp(data["time"] / 1000),
         )
