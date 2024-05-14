@@ -7,7 +7,7 @@ from ..config import Config
 from ..earthquake.eew import EEW
 from ..earthquake.location import RegionLocation
 from ..logging import InterceptHandler, Logging
-from ..notify.base import NotificationClient
+from ..notify.abc import NotificationClient
 from ..utils import MISSING
 
 
@@ -83,14 +83,14 @@ class HTTPEEWClient(EEWClient):
         return eew
 
     async def _get_request(self):
-        async with self.__session.get(f"{self.BASE_URL}/eq/eew?type=cwa") as r:
-            try:
+        try:
+            async with self.__session.get(f"{self.BASE_URL}/eq/eew?type=cwa") as r:
                 data: list[dict] = await r.json()
                 if not data:
                     return
-            except Exception as e:
-                self.logger.exception("Fail to get eew data.", exc_info=e)
-                return
+        except Exception as e:
+            self.logger.exception("Fail to get eew data.", exc_info=e)
+            return
 
         _check_finished_alerts = set(self._alerts.keys())
         for d in data:
