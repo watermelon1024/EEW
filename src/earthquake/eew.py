@@ -196,11 +196,25 @@ class EEW:
         return self._serial
 
     @property
+    def final(self) -> bool:
+        """
+        Whether the EEW is final report.
+        """
+        return self._final
+
+    @property
     def earthquake(self) -> EarthquakeData:
         """
         The earthquake data of the EEW.
         """
         return self._earthquake
+
+    @property
+    def provider(self) -> Provider:
+        """
+        The provider of the EEW.
+        """
+        return self._provider
 
     @property
     def time(self) -> datetime:
@@ -222,7 +236,7 @@ class EEW:
         return cls(
             id=data["id"],
             serial=data["serial"],
-            final=data["final"],
+            final=bool(data["final"]),
             earthquake=EarthquakeData.from_dict(data=data["eq"]),
             provider=Provider(data["author"]),
             time=datetime.fromtimestamp(data["time"] / 1000),
