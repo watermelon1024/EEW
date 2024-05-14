@@ -222,6 +222,7 @@ class EEW:
         return cls(
             id=data["id"],
             serial=data["serial"],
+            final=data["final"],
             earthquake=EarthquakeData.from_dict(data=data["eq"]),
             provider=Provider(data["author"]),
             time=datetime.fromtimestamp(data["time"] / 1000),
