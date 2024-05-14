@@ -83,7 +83,7 @@ class HTTPEEWClient(EEWClient):
         return eew
 
     async def _get_request(self):
-        async with self.__session.get(f"{self.BASE_URL}/eq/eew") as r:
+        async with self.__session.get(f"{self.BASE_URL}/eq/eew?type=cwa") as r:
             try:
                 data: list[dict] = await r.json()
                 if not data:
