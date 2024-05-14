@@ -1,5 +1,7 @@
 import json
 
+import geopandas as gpd
+
 from ..utils import MISSING
 
 
@@ -184,5 +186,14 @@ def _parse_region_dict(
     return all_regions
 
 
-with open("./src/asset/region.json", "r", encoding="utf-8") as f:
+with open("src/asset/region.json", "r", encoding="utf-8") as f:
     REGIONS: dict[int, RegionLocation] = _parse_region_dict(json.load(f))
+
+with open("src/asset/town_map.json", "r", encoding="utf-8") as f:
+    _raw_geo_data = json.load(f)["features"]
+    GEODATA: gpd.GeoDataFrame = gpd.GeoDataFrame.from_features(_raw_geo_data)
+    TOWN_RANGE = {
+        int(d["id"]): GEODATA[GEODATA["TOWNCODE"] == d["properties"]["TOWNCODE"]]
+        for d in _raw_geo_data
+        if d["id"].isdigit()
+    }

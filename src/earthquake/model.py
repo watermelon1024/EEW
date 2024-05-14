@@ -15,17 +15,29 @@ if TYPE_CHECKING:
     from .eew import EarthquakeData
 
 EARTH_RADIUS = 6371.008
-INTENSITY_DISPLAY = {
-    0: "0",
-    1: "1",
-    2: "2",
-    3: "3",
-    4: "4",
+INTENSITY_DISPLAY: dict[int, str] = {
+    0: "0級",
+    1: "1級",
+    2: "2級",
+    3: "3級",
+    4: "4級",
     5: "5弱",
     6: "5強",
     7: "6弱",
     8: "6強",
-    9: "7",
+    9: "7級",
+}
+INTENSITY_COLOR: dict[int, str] = {
+    0: None,
+    1: "#E1FFE3",
+    2: "#32FF36",
+    3: "#FFFD36",
+    4: "#FF8432",
+    5: "#FD5332",
+    6: "#C83C3B",
+    7: "#9B4649",
+    8: "#9A4C86",
+    9: "#B61FE8",
 }
 
 
@@ -33,6 +45,8 @@ class Intensity:
     """
     Represents an intensity.
     """
+
+    __slots__ = ("_float_value", "_value", "_display", "_color")
 
     def __init__(self, value: float) -> None:
         """
@@ -44,9 +58,10 @@ class Intensity:
         self._float_value = value
         self._value = round_intensity(value)
         self._display = INTENSITY_DISPLAY[self._value]
+        self._color = INTENSITY_COLOR[self._value]
 
     @property
-    def value(self) -> float:
+    def value(self) -> int:
         """
         The intensity.
         """
@@ -59,6 +74,13 @@ class Intensity:
         """
         return self._display
 
+    @property
+    def color(self) -> str:
+        """
+        Get the intensity color.
+        """
+        return self._color
+
     def __str__(self) -> str:
         return self._display
 
@@ -70,6 +92,8 @@ class Distance:
     """
     Represents a distance.
     """
+
+    __slots__ = ("_distance", "_p_time", "_s_time")
 
     def __init__(self, value: float, p_time: datetime, s_time: datetime) -> None:
         """

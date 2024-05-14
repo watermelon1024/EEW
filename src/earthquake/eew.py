@@ -1,7 +1,11 @@
+import io
 from datetime import datetime
 
+import matplotlib.pyplot as plt
+
 from ..utils import MISSING
-from .location import EarthquakeLocation
+from .location import GEODATA, TOWN_RANGE, EarthquakeLocation, RegionLocation
+from .model import Intensity, RegionExpectedIntensity, calculate_expected_intensity_and_travel_time
 
 PROVIDER_DISPLAY = {
     "cwa": "中央氣象署",
@@ -13,7 +17,15 @@ class EarthquakeData:
     Represents the data of an earthquake.
     """
 
-    __slots__ = ("_location", "_magnitude", "_depth", "_time", "_max_intensity")
+    __slots__ = (
+        "_location",
+        "_magnitude",
+        "_depth",
+        "_time",
+        "_max_intensity",
+        "_expected_intensity",
+        "_intensity_map",
+    )
 
     def __init__(
         self,
@@ -21,7 +33,7 @@ class EarthquakeData:
         magnitude: float,
         depth: int,
         time: datetime,
-        max_intensity: int = MISSING,
+        max_intensity: Intensity = MISSING,
     ) -> None:
         """
         Initialize an earthquake data object.
@@ -35,13 +47,15 @@ class EarthquakeData:
         :param time: The time when earthquake happened.
         :type time: datetime
         :param max_intensity: The maximum intensity of the earthquake.
-        :type max_intensity: int
+        :type max_intensity: Intensity
         """
         self._location = location
         self._magnitude = magnitude
         self._depth = depth
         self._time = time
         self._max_intensity = max_intensity
+        self._expected_intensity: dict[int, RegionExpectedIntensity] = None
+        self._intensity_map: io.BytesIO = None
 
     @property
     def location(self) -> EarthquakeLocation:
@@ -86,11 +100,18 @@ class EarthquakeData:
         return self._time
 
     @property
-    def max_intensity(self) -> int:
+    def max_intensity(self) -> Intensity:
         """
         The maximum intensity of the earthquake.
         """
         return self._max_intensity
+
+    @property
+    def intensity_map(self) -> io.BytesIO:
+        """
+        The intensity map of the earthquake.
+        """
+        return self._intensity_map
 
     @classmethod
     def from_dict(cls, data: dict) -> "EarthquakeData":
@@ -107,8 +128,52 @@ class EarthquakeData:
             magnitude=data["mag"],
             depth=data["depth"],
             time=datetime.fromtimestamp(data["time"] / 1000),
-            max_intensity=data.get("max", MISSING),
+            max_intensity=Intensity(i) if (i := data.get("max")) else MISSING,
         )
+
+    def calc_expected_intensity(
+        self, regions: list[RegionLocation] = MISSING
+    ) -> dict[int, RegionExpectedIntensity]:
+        """
+        Calculate the expected intensity of the earthquake.
+        """
+        self._expected_intensity = calculate_expected_intensity_and_travel_time(self, regions)
+        return self._expected_intensity
+
+    @property
+    def expected_intensity(self) -> dict[int, RegionExpectedIntensity]:
+        """
+        The expected intensity of the earthquake.
+        Format: {region_id: RegionExpectedIntensity, ...}
+        """
+        if self._expected_intensity is None:
+            self.calc_expected_intensity()
+        return self._expected_intensity
+
+    def draw_map(self) -> str:
+        """
+        Draw the map of the earthquake.
+        """
+        if self._expected_intensity is None:
+            self.calc_expected_intensity()
+
+        fig, ax = plt.subplots(figsize=(16, 24))
+        ax: plt.Axes
+        fig.patch.set_alpha(0)
+        ax.set_axis_off()
+        # map boundary
+        min_lon, max_lon = self.lon - 1.5, self.lon + 1.5
+        min_lat, max_lat = self.lat - 2.2, self.lat + 2.2
+        ax.set_xlim(min_lon, max_lon)
+        ax.set_ylim(min_lat, max_lat)
+        GEODATA.plot(ax=ax, color="lightgrey", edgecolor="black", linewidth=0.64)
+        for code, region in self._expected_intensity.items():
+            if region.intensity.value > 0:
+                TOWN_RANGE[code].plot(ax=ax, color=region.intensity.color)
+        # draw epicentre
+        ax.scatter(self.lon, self.lat, marker="x", color="red", s=320, linewidths=8)
+        self._intensity_map = io.BytesIO()
+        fig.savefig(self._intensity_map, format="png", bbox_inches="tight")
 
 
 class Provider:
