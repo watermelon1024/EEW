@@ -186,8 +186,16 @@ def _parse_region_dict(
     return all_regions
 
 
+def _group_region_by_city(regions: dict[int, RegionLocation]) -> dict[str, list[RegionLocation]]:
+    grouped_regions: dict[str, list[RegionLocation]] = {}
+    for region in regions.values():
+        grouped_regions.setdefault(region.city, []).append(region)
+    return grouped_regions
+
+
 with open("src/asset/region.json", "r", encoding="utf-8") as f:
     REGIONS: dict[int, RegionLocation] = _parse_region_dict(json.load(f))
+REGIONS_GROUP_BY_CITY: dict[str, list[RegionLocation]] = _group_region_by_city(REGIONS)
 
 with open("src/asset/town_map.json", "r", encoding="utf-8") as f:
     _raw_geo_data = json.load(f)["features"]

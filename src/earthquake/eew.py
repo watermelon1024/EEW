@@ -4,7 +4,14 @@ from datetime import datetime
 import matplotlib.pyplot as plt
 
 from ..utils import MISSING
-from .location import COUNTRY_DATA, TOWN_DATA, TOWN_RANGE, EarthquakeLocation, RegionLocation
+from .location import (
+    COUNTRY_DATA,
+    REGIONS_GROUP_BY_CITY,
+    TOWN_DATA,
+    TOWN_RANGE,
+    EarthquakeLocation,
+    RegionLocation,
+)
 from .model import Intensity, RegionExpectedIntensity, calculate_expected_intensity_and_travel_time
 
 PROVIDER_DISPLAY = {
@@ -22,7 +29,8 @@ class EarthquakeData:
         "_magnitude",
         "_depth",
         "_time",
-        "_max_intensity",
+        "_city_max_intensity",
+        "_city_max_intensity",
         "_expected_intensity",
         "_intensity_map",
     )
@@ -53,7 +61,8 @@ class EarthquakeData:
         self._magnitude = magnitude
         self._depth = depth
         self._time = time
-        self._max_intensity = max_intensity
+        self._city_max_intensity = max_intensity
+        self._city_max_intensity: dict[str, RegionExpectedIntensity] = None
         self._expected_intensity: dict[int, RegionExpectedIntensity] = None
         self._intensity_map: io.BytesIO = None
 
@@ -104,7 +113,14 @@ class EarthquakeData:
         """
         The maximum intensity of the earthquake.
         """
-        return self._max_intensity
+        return self._city_max_intensity
+
+    @property
+    def city_max_intensity(self) -> dict[str, RegionExpectedIntensity]:
+        """
+        The maximum intensity of the earthquake in each city.
+        """
+        return self._city_max_intensity
 
     @property
     def intensity_map(self) -> io.BytesIO:
@@ -175,6 +191,24 @@ class EarthquakeData:
         ax.scatter(self.lon, self.lat, marker="x", color="red", s=360, linewidths=4)
         self._intensity_map = io.BytesIO()
         fig.savefig(self._intensity_map, format="png", bbox_inches="tight")
+
+    def calc_city_max_intensity(self) -> dict[str, RegionExpectedIntensity]:
+        """
+        The maximum intensity of the earthquake in the every city.
+        """
+        if self._expected_intensity is None:
+            self.calc_expected_intensity()
+        if self._city_max_intensity is not None:
+            return self._city_max_intensity
+
+        self._city_max_intensity = {
+            city: max(
+                (self._expected_intensity[region.code] for region in regions),
+                key=lambda x: x.intensity.value,
+            )
+            for city, regions in REGIONS_GROUP_BY_CITY.items()
+        }
+        return self._city_max_intensity
 
 
 class Provider:

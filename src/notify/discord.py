@@ -13,7 +13,7 @@ class EEWMessages:
     Represents discord messages with EEW data.
     """
 
-    __slots__ = ("eew", "messages", "_embed_cache")
+    __slots__ = ("eew", "messages", "__info_embed_cache", "__intensity_embed_cache")
 
     def __init__(self, eew: EEW, messages: list[discord.Message]) -> None:
         """
@@ -26,16 +26,18 @@ class EEWMessages:
         """
         self.eew = eew
         self.messages = messages
-        self._embed_cache: discord.Embed = None
+        self.__info_embed_cache: discord.Embed = None
+        self.__intensity_embed_cache: discord.Embed = None
 
-    def embed(self) -> discord.Embed:
-        if self._embed_cache is not None:
-            return self._embed_cache
+    def info_embed(self) -> discord.Embed:
+        # cache
+        if self.__info_embed_cache is not None:
+            return self.__info_embed_cache
 
         # shortcut
         eew = self.eew
         eq = eew.earthquake
-        self._embed_cache = discord.Embed(
+        self.__info_embed_cache = discord.Embed(
             title=f"地震速報　第{eew.serial}報{'(最終報)' if eew.final else ''}",
             description=f"""\
 {eq.time.strftime("%m/%d %H:%M:%S")} 左右{f"於 {eq.location.display_name}附近 " if eq.location.display_name else ""}發生有感地震，慎防搖晃。
@@ -45,11 +47,36 @@ class EEWMessages:
             name="Taiwan Earthquake Early Warning",
             icon_url="https://cdn.discordapp.com/emojis/1018381096532070572.png",
         )
-        return self._embed_cache
+        return self.__info_embed_cache
+
+    def intensity_embed(self) -> discord.Embed:
+        # cache
+        # if self.__intensity_embed_cache is not None:
+        #     return self.__intensity_embed_cache
+
+        self.__intensity_embed_cache = discord.Embed(
+            title="震度等級預估",
+            description="\n".join(
+                (
+                    f"{city}最大震度：{intensity.region.name} {intensity.intensity.display} "
+                    f"<t:{intensity.distance.s_time.timestamp()}:R>內抵達"
+                    if intensity.distance.s_left_time().seconds > 0
+                    else "已抵達"
+                )
+                for city, intensity in self.eew.earthquake.city_max_intensity.items()
+            ),
+        )
+        return self.__intensity_embed_cache
 
     async def _send_singal_message(self, channel: discord.TextChannel, mention: str = None):
         try:
-            return await channel.send(mention, embed=self._embed_cache)
+            return await channel.send(mention, embed=self.__info_embed_cache)
+        except Exception:
+            return None
+
+    async def _edit_singal_message(self, message: discord.Message):
+        try:
+            return await message.edit(embeds=[self.__info_embed_cache, self.intensity_embed()])
         except Exception:
             return None
 
@@ -72,7 +99,7 @@ class EEWMessages:
         :rtype: EEWMessage
         """
         self = cls(eew, [])
-        self.embed()
+        self.info_embed()
         self.messages = list(
             filter(
                 None,
@@ -85,6 +112,24 @@ class EEWMessages:
             )
         )
         return self
+
+    async def edit(self) -> None:
+        """
+        Edit the discord messages to update S wave arrival time.
+        """
+        await asyncio.gather(*(self._edit_singal_message(message) for message in self.messages))
+
+    async def update_eew(self, eew: EEW) -> None:
+        """
+        Edit the discord messages if EEW data is updated.
+
+        :param eew: The EEW instance.
+        :type eew: EEW
+        """
+        self.eew = eew
+        self.__info_embed_cache = None
+        self.info_embed()
+        await self.edit()
 
 
 class DiscordNotification(NotificationClient, discord.Bot):
@@ -161,6 +206,15 @@ Guilds Count: {len(self.guilds)}
         await super().close()
         self.logger.info("Discord Bot closed.")
 
-    async def send_eew(self, eew: EEW):
+    async def send_eew(self, eew: EEW) -> EEWMessages:
         m = await EEWMessages.send(EEW, self.notification_channels)
         self.alerts[eew.id, m]
+        return m
+
+    async def update_eew(self, eew: EEW) -> EEWMessages:
+        m = self.alerts.get(eew.id)
+        if m is None:
+            m = await self.send_eew(eew)
+
+        await m.update_eew(eew)
+        return m
