@@ -191,9 +191,12 @@ with open("src/asset/region.json", "r", encoding="utf-8") as f:
 
 with open("src/asset/town_map.json", "r", encoding="utf-8") as f:
     _raw_geo_data = json.load(f)["features"]
-    GEODATA: gpd.GeoDataFrame = gpd.GeoDataFrame.from_features(_raw_geo_data)
+    TOWN_DATA: gpd.GeoDataFrame = gpd.GeoDataFrame.from_features(_raw_geo_data)
     TOWN_RANGE = {
-        int(d["id"]): GEODATA[GEODATA["TOWNCODE"] == d["properties"]["TOWNCODE"]]
+        int(d["id"]): TOWN_DATA[TOWN_DATA["TOWNCODE"] == d["properties"]["TOWNCODE"]]
         for d in _raw_geo_data
         if d["id"].isdigit()
     }
+with open("src/asset/country_map.json", "r", encoding="utf-8") as f:
+    _raw_geo_data = json.load(f)["features"]
+    COUNTRY_DATA: gpd.GeoDataFrame = gpd.GeoDataFrame.from_features(_raw_geo_data)

@@ -4,7 +4,7 @@ from datetime import datetime
 import matplotlib.pyplot as plt
 
 from ..utils import MISSING
-from .location import GEODATA, TOWN_RANGE, EarthquakeLocation, RegionLocation
+from .location import COUNTRY_DATA, TOWN_DATA, TOWN_RANGE, EarthquakeLocation, RegionLocation
 from .model import Intensity, RegionExpectedIntensity, calculate_expected_intensity_and_travel_time
 
 PROVIDER_DISPLAY = {
@@ -150,28 +150,29 @@ class EarthquakeData:
             self.calc_expected_intensity()
         return self._expected_intensity
 
-    def draw_map(self) -> str:
+    def draw_map(self):
         """
         Draw the map of the earthquake.
         """
         if self._expected_intensity is None:
             self.calc_expected_intensity()
 
-        fig, ax = plt.subplots(figsize=(16, 24))
+        fig, ax = plt.subplots(figsize=(12, 24))
         ax: plt.Axes
         fig.patch.set_alpha(0)
         ax.set_axis_off()
         # map boundary
-        min_lon, max_lon = self.lon - 1.5, self.lon + 1.5
-        min_lat, max_lat = self.lat - 2.2, self.lat + 2.2
+        min_lon, max_lon = self.lon - 1.6, self.lon + 1.6
+        min_lat, max_lat = self.lat - 2.4, self.lat + 2.4
         ax.set_xlim(min_lon, max_lon)
         ax.set_ylim(min_lat, max_lat)
-        GEODATA.plot(ax=ax, color="lightgrey", edgecolor="black", linewidth=0.64)
+        TOWN_DATA.plot(ax=ax, color="lightgrey", edgecolor="black")
         for code, region in self._expected_intensity.items():
             if region.intensity.value > 0:
                 TOWN_RANGE[code].plot(ax=ax, color=region.intensity.color)
+        COUNTRY_DATA.plot(ax=ax, edgecolor="black", facecolor="none", linewidth=0.8)
         # draw epicentre
-        ax.scatter(self.lon, self.lat, marker="x", color="red", s=320, linewidths=8)
+        ax.scatter(self.lon, self.lat, marker="x", color="red", s=360, linewidths=4)
         self._intensity_map = io.BytesIO()
         fig.savefig(self._intensity_map, format="png", bbox_inches="tight")
 
