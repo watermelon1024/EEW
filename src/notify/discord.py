@@ -13,10 +13,9 @@ class EEWMessages:
     Represents discord messages with EEW data.
     """
 
-    __slots__ = ("eew", "messages")
-    _embed_cache = None
+    __slots__ = ("eew", "messages", "_embed_cache")
 
-    def __init__(self, eew: EEW, message: discord.Message) -> None:
+    def __init__(self, eew: EEW, messages: list[discord.Message]) -> None:
         """
         Initialize a new discord message.
 
@@ -26,9 +25,10 @@ class EEWMessages:
         :type message: discord.Message
         """
         self.eew = eew
-        self.message = message
+        self.messages = messages
+        self._embed_cache: discord.Embed = None
 
-    def embed(self):
+    def embed(self) -> discord.Embed:
         if self._embed_cache is not None:
             return self._embed_cache
 
@@ -47,24 +47,44 @@ class EEWMessages:
         )
         return self._embed_cache
 
+    async def _send_singal_message(self, channel: discord.TextChannel, mention: str = None):
+        try:
+            return await channel.send(mention, embed=self._embed_cache)
+        except Exception:
+            return None
+
     @classmethod
     async def send(
-        cls, eew: EEW, channel: discord.TextChannel, mention: str = None
+        cls,
+        eew: EEW,
+        notification_channels: list[dict[str, str | discord.TextChannel | None]],
     ) -> "EEWMessages":
         """
         Send a new discord message.
 
         :param eew: The EEW instance.
         :type eew: EEW
-        :param channel: The discord channel.
-        :type channel: discord.TextChannel
+        :param channels: Discord channels.
+        :type channels: list[discord.TextChannel]
         :param mention: The mention to send.
         :type mention: str
-        :return: The new discord message.
+        :return: The new discord messages.
         :rtype: EEWMessage
         """
-        message = await channel.send(mention)
-        return cls(eew, message)
+        self = cls(eew, [])
+        self.embed()
+        self.messages = list(
+            filter(
+                None,
+                await asyncio.gather(
+                    *(
+                        self._send_singal_message(d["channel"], d["mention"])
+                        for d in notification_channels
+                    )
+                ),
+            )
+        )
+        return self
 
 
 class DiscordNotification(NotificationClient, discord.Bot):
@@ -111,16 +131,16 @@ class DiscordNotification(NotificationClient, discord.Bot):
         if self._client_ready:
             return
 
-        self.notification_channels: list[dict] = []
+        self.notification_channels: list[dict[str, str | discord.TextChannel | None]] = []
         for data in self.config["discord"]["channels"]:
             channel = await self.get_or_fetch_channel(data["id"])
             if channel is None:
                 self.logger.warning(f"Ignore channel '{data['id']}' because it was not found.")
                 continue
             mention = (
-                f"@{m}"
-                if (m := data.get("mention", "everyone").removeprefix("@")) in ["everyone", "here"]
-                else f"<@&{m}>"
+                None
+                if not (m := data.get("mention"))
+                else (f"<@&{m}>" if isinstance(m, int) else f"@{m.removeprefix('@')}")
             )
             self.notification_channels.append({"channel": channel, "mention": mention})
 
@@ -142,4 +162,5 @@ Guilds Count: {len(self.guilds)}
         self.logger.info("Discord Bot closed.")
 
     async def send_eew(self, eew: EEW):
-        return await super().send_eew(eew)
+        m = await EEWMessages.send(EEW, self.notification_channels)
+        self.alerts[eew.id, m]
