@@ -1,6 +1,7 @@
 import asyncio
 
 import discord
+from discord.ext import tasks
 
 from ..earthquake.eew import EEW
 from ..logging import Logger
@@ -119,9 +120,9 @@ class EEWMessages:
         """
         await asyncio.gather(*(self._edit_singal_message(message) for message in self.messages))
 
-    async def update_eew(self, eew: EEW) -> None:
+    async def update_eew_data(self, eew: EEW) -> "EEWMessages":
         """
-        Edit the discord messages if EEW data is updated.
+        Update EEW data.
 
         :param eew: The EEW instance.
         :type eew: EEW
@@ -129,7 +130,7 @@ class EEWMessages:
         self.eew = eew
         self.__info_embed_cache = None
         self.info_embed()
-        await self.edit()
+        return self
 
 
 class DiscordNotification(NotificationClient, discord.Bot):
@@ -209,6 +210,10 @@ Guilds Count: {len(self.guilds)}
     async def send_eew(self, eew: EEW) -> EEWMessages:
         m = await EEWMessages.send(EEW, self.notification_channels)
         self.alerts[eew.id, m]
+
+        if not self.update_eew_messages.is_running():
+            self.update_eew_messages.start()
+
         return m
 
     async def update_eew(self, eew: EEW) -> EEWMessages:
@@ -216,5 +221,13 @@ Guilds Count: {len(self.guilds)}
         if m is None:
             m = await self.send_eew(eew)
 
-        await m.update_eew(eew)
-        return m
+        return await m.update_eew_data(eew)
+
+    @tasks.loop(seconds=1)
+    async def update_eew_messages(self):
+        if not self.alerts:
+            self.update_eew_messages.stop()
+            return
+
+        for m in self.alerts.values():
+            await m.edit()
