@@ -32,7 +32,6 @@ class Logging:
             patchers=[],
             extra={},
         )
-        self._logger.disable("discord")
         self._logger.add(
             sys.stderr,
             level=level,

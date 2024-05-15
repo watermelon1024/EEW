@@ -1,14 +1,13 @@
 import asyncio
-import logging
 
 import aiohttp
 
-from ..config import Config
-from ..earthquake.eew import EEW
-from ..earthquake.location import RegionLocation
-from ..logging import InterceptHandler, Logging
-from ..notify.abc import NotificationClient
-from ..utils import MISSING
+from .config import Config
+from .earthquake.eew import EEW
+from .earthquake.location import RegionLocation
+from .logging import Logger
+from .notify.abc import NotificationClient
+from .utils import MISSING
 
 
 class EEWClient:
@@ -18,30 +17,29 @@ class EEWClient:
 
     def __init__(
         self,
+        config: Config,
+        logger: Logger,
         alert_regions: list[RegionLocation] = MISSING,
         calculate_site_effect: bool = False,
-        notify_client: list[NotificationClient] = MISSING,
+        notification_client: list[NotificationClient] = MISSING,
         api_version: int = 1,
     ) -> None:
+        self.config = config
+        self.debug_mode: bool = config["debug-mode"]
+        self.logger = logger
+
         self._alert_regions = alert_regions
         self._calc_site_effect = calculate_site_effect
-        self._notify_client = notify_client
+        self._notification_client = notification_client
 
         self.__API_VERSION = api_version
         self.BASE_URL = f"https://api-2.exptech.com.tw/api/v{api_version}"
 
-        self.config = Config()
-        self.debug_mode: bool = self.config["debug-mode"]
-        self.logger = Logging(
-            retention=self.config["log"]["retention"],
-            debug_mode=self.debug_mode,
-            format=self.config["log"]["format"],
-        ).get_logger()
-        logging.basicConfig(
-            handlers=[InterceptHandler(self.logger)],
-            level=0 if self.debug_mode else logging.INFO,
-            force=True,
-        )
+    def add_notification(self, client: NotificationClient):
+        """
+        Add a notification client.
+        """
+        self._notification_client.append(client)
 
 
 class HTTPEEWClient(EEWClient):
@@ -51,12 +49,13 @@ class HTTPEEWClient(EEWClient):
 
     __session: aiohttp.ClientSession = MISSING
     __task: asyncio.Task = MISSING
+    __event_loop: asyncio.AbstractEventLoop = MISSING
     _alerts: dict[str, EEW] = {}
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self.recreate_session()
-        self._event_loop = asyncio.get_event_loop()
+        self.__event_loop = asyncio.get_event_loop()
+        self.logger.info("EEW Client is ready.")
 
     def recreate_session(self):
         if not self.__session or self.__session.closed:
@@ -66,8 +65,8 @@ class HTTPEEWClient(EEWClient):
         eew = EEW.from_dict(data)
         self._alerts[eew.id] = eew
 
-        # call custom notify client
-        for client in self._notify_client:
+        # call custom notification client
+        for client in self._notification_client:
             await client.send_eew(eew)
 
         return eew
@@ -76,8 +75,8 @@ class HTTPEEWClient(EEWClient):
         eew = EEW.from_dict(data)
         self._alerts[eew.id] = eew
 
-        # call custom notify client
-        for client in self._notify_client:
+        # call custom notification client
+        for client in self._notification_client:
             await client.update_eew(eew)
 
         return eew
@@ -107,7 +106,16 @@ class HTTPEEWClient(EEWClient):
             self._alerts.pop(id, None)
 
     async def _loop(self):
+        self.recreate_session()
+        self.__event_loop = asyncio.get_event_loop()
         while True:
             if not self.__task or self.__task.done():
-                self.__task = self._event_loop.create_task(self._get_request())
+                self.__task = asyncio.ensure_future(self._get_request())
+
             await asyncio.sleep(1)
+
+    def run(self):
+        """
+        Start the client.
+        """
+        self.__event_loop.create_task(self._loop())
