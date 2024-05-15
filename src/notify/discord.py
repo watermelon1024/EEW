@@ -154,13 +154,13 @@ class DiscordNotification(NotificationClient, discord.Bot):
         """
         self.logger = logger
         self.config = config
+        self.token = token
 
         logger.disable("discord")  # avoid pycord shard info spamming the console
 
         self._client_ready = False
         intents = discord.Intents.default()
         super().__init__(owner_ids=self.config["discord"]["owners"], intents=intents)
-        asyncio.create_task(self.start(token))
 
     async def get_or_fetch_channel(self, id: int, default=MISSING):
         try:
@@ -179,7 +179,7 @@ class DiscordNotification(NotificationClient, discord.Bot):
 
         self.notification_channels: list[dict[str, str | discord.TextChannel | None]] = []
         for data in self.config["discord"]["channels"]:
-            channel = await self.get_or_fetch_channel(data["id"])
+            channel = await self.get_or_fetch_channel(data["id"], None)
             if channel is None:
                 self.logger.warning(f"Ignore channel '{data['id']}' because it was not found.")
                 continue
@@ -200,8 +200,8 @@ Guilds Count: {len(self.guilds)}
         )
         self._client_ready = True
 
-    async def start(self, token: str, *, reconnect: bool = True) -> None:
-        return await super().start(token, reconnect=reconnect)
+    async def run(self) -> None:
+        return await super().start(self.token, reconnect=True)
 
     async def close(self) -> None:
         await super().close()

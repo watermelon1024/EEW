@@ -30,7 +30,7 @@ class EEWClient:
 
         self._alert_regions = alert_regions
         self._calc_site_effect = calculate_site_effect
-        self._notification_client = notification_client
+        self._notification_client = notification_client or []
 
         self.__API_VERSION = api_version
         self.BASE_URL = f"https://api-2.exptech.com.tw/api/v{api_version}"
@@ -40,6 +40,12 @@ class EEWClient:
         Add a notification client.
         """
         self._notification_client.append(client)
+
+    def run_notification_client(self, loop: asyncio.AbstractEventLoop):
+        """
+        Run the notification client.
+        """
+        return [client.run() for client in self._notification_client]
 
 
 class HTTPEEWClient(EEWClient):
@@ -54,7 +60,6 @@ class HTTPEEWClient(EEWClient):
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self.__event_loop = asyncio.get_event_loop()
         self.logger.info("EEW Client is ready.")
 
     def recreate_session(self):
@@ -110,12 +115,15 @@ class HTTPEEWClient(EEWClient):
         self.__event_loop = asyncio.get_event_loop()
         while True:
             if not self.__task or self.__task.done():
-                self.__task = asyncio.ensure_future(self._get_request())
+                self.__task = self.__event_loop.create_task(self._get_request())
 
             await asyncio.sleep(1)
+
+    async def _run(self):
+        await asyncio.gather(*self.run_notification_client(self.__event_loop), self._loop())
 
     def run(self):
         """
         Start the client.
         """
-        self.__event_loop.create_task(self._loop())
+        asyncio.run(self._run())

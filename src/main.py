@@ -1,4 +1,3 @@
-import asyncio
 import logging
 import os
 
@@ -25,7 +24,6 @@ def main():
         force=True,
     )
 
-    logger.info("Starting EEW client...")
     client = HTTPEEWClient(config, logger)
 
     if config.get("discord") is None:
@@ -38,5 +36,5 @@ def main():
             exit(1)
         client.add_notification(DiscordNotification(logger, config, token))
 
-    # client.run()
-    asyncio.run(client._loop())
+    logger.info("Starting EEW client...")
+    client.run()

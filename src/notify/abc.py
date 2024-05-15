@@ -17,3 +17,6 @@ class NotificationClient(ABC):
     @abstractmethod
     async def update_eew(self, eew: "EEW"):
         pass
+
+    async def run(self):
+        pass
