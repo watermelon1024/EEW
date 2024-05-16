@@ -86,13 +86,16 @@ class HTTPEEWClient(EEWClient):
 
         return eew
 
-    async def _get_request(self):
+    async def _get_request(self, retry: int = 0):
         try:
             async with self.__session.get(f"{self.BASE_URL}/eq/eew?type=cwa") as r:
                 data: list[dict] = await r.json()
                 if not data:
                     return
         except Exception as e:
+            if retry > 0:
+                self.recreate_session()
+                return await self._get_request(retry - 1)
             self.logger.exception("Fail to get eew data.", exc_info=e)
             return
 
@@ -111,7 +114,6 @@ class HTTPEEWClient(EEWClient):
             self._alerts.pop(id, None)
 
     async def _loop(self):
-        self.recreate_session()
         self.__event_loop = asyncio.get_event_loop()
         while True:
             if not self.__task or self.__task.done():
@@ -119,11 +121,17 @@ class HTTPEEWClient(EEWClient):
 
             await asyncio.sleep(1)
 
-    async def _run(self):
+    async def start(self):
+        """
+        Start the client.
+        Note: This coro won't finish forever until user interrupt it.
+        """
+        self.recreate_session()
         await asyncio.gather(*self.run_notification_client(self.__event_loop), self._loop())
 
     def run(self):
         """
         Start the client.
+        Note: This is a blocking call. If you want to control your own event loop, use `start` instead.
         """
-        asyncio.run(self._run())
+        asyncio.run(self.start())
