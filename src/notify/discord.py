@@ -37,7 +37,7 @@ class EEWMessages:
 
         # shortcut
         eew = self.eew
-        eq = eew.earthquake
+        eq = eew._earthquake
         self.__info_embed_cache = discord.Embed(
             title=f"地震速報　第{eew.serial}報{'(最終報)' if eew.final else ''}",
             description=f"""\
