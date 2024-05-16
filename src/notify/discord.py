@@ -66,6 +66,7 @@ class EEWMessages:
                 )
                 for city, intensity in self.eew.earthquake.city_max_intensity.items()
             ),
+            image="attachment://image.png",
         )
         return self.__intensity_embed_cache
 
@@ -76,8 +77,13 @@ class EEWMessages:
             return None
 
     async def _edit_singal_message(self, message: discord.Message):
+        if self.eew.earthquake.intensity_map is None:
+            self.eew.earthquake.draw_map()
         try:
-            return await message.edit(embeds=[self.__info_embed_cache, self.intensity_embed()])
+            return await message.edit(
+                embeds=[self.__info_embed_cache, self.intensity_embed()],
+                file=discord.File(self.eew.earthquake.intensity_map, filename="image.png"),
+            )
         except Exception:
             return None
 
