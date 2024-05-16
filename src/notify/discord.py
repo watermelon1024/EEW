@@ -223,6 +223,9 @@ Guilds Count: {len(self.guilds)}
 
         return await m.update_eew_data(eew)
 
+    async def lift_eew(self, eew: EEW):
+        self.alerts.pop(eew.id, None)
+
     @tasks.loop(seconds=1)
     async def update_eew_messages(self):
         if not self.alerts:

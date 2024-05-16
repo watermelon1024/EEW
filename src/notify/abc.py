@@ -18,5 +18,8 @@ class NotificationClient(ABC):
     async def update_eew(self, eew: "EEW"):
         pass
 
+    async def lift_eew(self, eew: "EEW"):
+        pass
+
     async def run(self):
         pass

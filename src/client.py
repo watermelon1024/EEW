@@ -86,6 +86,11 @@ class HTTPEEWClient(EEWClient):
 
         return eew
 
+    async def lift_alert(self, eew: EEW):
+        # call custom notification client
+        for client in self._notification_client:
+            await client.lift_eew(eew)
+
     async def _get_request(self, retry: int = 0):
         try:
             async with self.__session.get(f"{self.BASE_URL}/eq/eew?type=cwa") as r:
@@ -111,7 +116,9 @@ class HTTPEEWClient(EEWClient):
 
         # remove finished alerts
         for id in _check_finished_alerts:
-            self._alerts.pop(id, None)
+            eew = self._alerts.pop(id, None)
+            if eew is not None:
+                self.lift_alert(eew)
 
     async def _loop(self):
         self.__event_loop = asyncio.get_event_loop()
