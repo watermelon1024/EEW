@@ -1,5 +1,6 @@
 import asyncio
 from datetime import datetime
+import math
 
 import discord
 from discord.ext import tasks
@@ -16,17 +17,22 @@ class EEWMessages:
     Represents discord messages with EEW data.
     """
 
-    __slots__ = ("eew", "messages", "_info_embed", "_intensity_embed", "map_url")
+    __slots__ = ("bot", "eew", "messages", "_info_embed", "_intensity_embed", "map_url")
 
-    def __init__(self, eew: EEW, messages: list[discord.Message]) -> None:
+    def __init__(
+        self, bot: "DiscordNotification", eew: EEW, messages: list[discord.Message]
+    ) -> None:
         """
         Initialize a new discord message.
 
+        :param bot: The discord bot.
+        :type bot: DiscordNotification
         :param eew: The EEW instance.
         :type eew: EEW
         :param message: The discord message.
         :type message: discord.Message
         """
+        self.bot = bot
         self.eew = eew
         self.messages = messages
         self._info_embed: discord.Embed = None
@@ -40,10 +46,10 @@ class EEWMessages:
 
         self._info_embed = (
             discord.Embed(
-                title=f"地震速報　第{eew.serial}報{'(最終報)' if eew.final else ''}",
+                title=f"地震速報　第 {eew.serial} 報{'（最終報）' if eew.final else ''}",
                 description=f"""\
-{eq.time.strftime("%m/%d %H:%M:%S")} 左右{f"於 {eq.location.display_name}附近 " if eq.location.display_name else ""}發生有感地震，慎防搖晃
-預估規模`{eq.mag}`，震源深度 `{eq.depth}`公里，最大震度{eq.max_intensity.display}""",
+{eq.time.strftime("%m/%d %H:%M:%S")} {f"於 {eq.location.display_name} " if eq.location.display_name else ""}發生有感地震，慎防搖晃！
+預估規模 `{eq.mag}`，震源深度 `{eq.depth}` 公里，最大震度{eq.max_intensity.display}""",
                 color=0xFF0000,
             )
             .set_author(
@@ -56,12 +62,14 @@ class EEWMessages:
         return self._info_embed
 
     def intensity_embed(self) -> discord.Embed:
-        current_time = int(datetime.now().timestamp())
+        ping = self.bot.latency
+        current_time = int(datetime.now().timestamp() + (ping if math.isfinite(ping) else 0))
         self._intensity_embed = discord.Embed(
             title="震度等級預估",
-            description="\n".join(
+            description="各縣市預估最大震度｜預計抵達時間\n"
+            + "\n".join(
                 (
-                    f"{city}最大震度：{intensity.region.name} {intensity.intensity.display} "
+                    f"{city} {intensity.region.name.ljust(4, '　')} {intensity.intensity.display}｜"
                     + (
                         f"<t:{arrival_time}:R>抵達"
                         if (arrival_time := int(intensity.distance.s_time.timestamp()))
@@ -92,6 +100,7 @@ class EEWMessages:
     @classmethod
     async def send(
         cls,
+        bot: "DiscordNotification",
         eew: EEW,
         notification_channels: list[dict[str, str | discord.TextChannel | None]],
     ) -> "EEWMessages":
@@ -107,7 +116,7 @@ class EEWMessages:
         :return: The new discord messages.
         :rtype: EEWMessage
         """
-        self = cls(eew, [])
+        self = cls(bot, eew, [])
         self.info_embed()
         self.messages = list(
             filter(
@@ -134,10 +143,10 @@ class EEWMessages:
             )
             self.map_url = m.embeds[1].image.url
             update = ()
+            intensity_embed = self.intensity_embed()
         else:
-            coro = self._edit_singal_message(self.messages[0], intensity_embed.copy())
-            update = (coro,)
-            intensity_embed.set_image(url=self.map_url)
+            update = (self._edit_singal_message(self.messages[0], intensity_embed.copy()),)
+        intensity_embed.set_image(url=self.map_url)
 
         await asyncio.gather(
             *update,
@@ -167,6 +176,7 @@ class DiscordNotification(NotificationClient, discord.Bot):
 
     # eew-id: EEWMessages
     alerts: dict[str, EEWMessages] = {}
+    notification_channels: list[dict[str, str | discord.TextChannel | None]] = []
 
     def __init__(self, logger: Logger, config: Config, token: str) -> None:
         """
@@ -205,7 +215,6 @@ class DiscordNotification(NotificationClient, discord.Bot):
         if self._client_ready:
             return
 
-        self.notification_channels: list[dict[str, str | discord.TextChannel | None]] = []
         for data in self.config["discord"]["channels"]:
             channel = await self.get_or_fetch_channel(data["id"], None)
             if channel is None:
@@ -236,7 +245,7 @@ Guilds Count: {len(self.guilds)}
         self.logger.info("Discord Bot closed.")
 
     async def send_eew(self, eew: EEW) -> EEWMessages:
-        m = await EEWMessages.send(eew, self.notification_channels)
+        m = await EEWMessages.send(self, eew, self.notification_channels)
         self.alerts[eew.id] = m
 
         eew.earthquake.calc_city_max_intensity()
