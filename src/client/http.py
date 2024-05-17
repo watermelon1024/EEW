@@ -2,50 +2,9 @@ import asyncio
 
 import aiohttp
 
-from .config import Config
-from .earthquake.eew import EEW
-from .earthquake.location import RegionLocation
-from .logging import Logger
-from .notify.abc import NotificationClient
-from .utils import MISSING
-
-
-class EEWClient:
-    """
-    Represents a base EEW API Client.
-    """
-
-    def __init__(
-        self,
-        config: Config,
-        logger: Logger,
-        alert_regions: list[RegionLocation] = MISSING,
-        calculate_site_effect: bool = False,
-        notification_client: list[NotificationClient] = MISSING,
-        api_version: int = 1,
-    ) -> None:
-        self.config = config
-        self.debug_mode: bool = config["debug-mode"]
-        self.logger = logger
-
-        self._alert_regions = alert_regions
-        self._calc_site_effect = calculate_site_effect
-        self._notification_client = notification_client or []
-
-        self.__API_VERSION = api_version
-        self.BASE_URL = f"https://api-2.exptech.com.tw/api/v{api_version}"
-
-    def add_notification(self, client: NotificationClient):
-        """
-        Add a notification client.
-        """
-        self._notification_client.append(client)
-
-    def run_notification_client(self, loop: asyncio.AbstractEventLoop):
-        """
-        Run the notification client.
-        """
-        return [client.run() for client in self._notification_client]
+from ..earthquake.eew import EEW
+from ..utils import MISSING
+from .abc import EEWClient
 
 
 class HTTPEEWClient(EEWClient):
@@ -60,7 +19,6 @@ class HTTPEEWClient(EEWClient):
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self.logger.info("EEW Client is ready.")
 
     def recreate_session(self):
         if not self.__session or self.__session.closed:
@@ -122,9 +80,10 @@ class HTTPEEWClient(EEWClient):
 
     async def _loop(self):
         self.__event_loop = asyncio.get_event_loop()
+        self.logger.info("EEW Client is ready.")
         while True:
             if not self.__task or self.__task.done():
-                self.__task = self.__event_loop.create_task(self._get_request())
+                self.__task = self.__event_loop.create_task(self._get_request(3))
 
             await asyncio.sleep(1)
 
@@ -134,7 +93,7 @@ class HTTPEEWClient(EEWClient):
         Note: This coro won't finish forever until user interrupt it.
         """
         self.recreate_session()
-        await asyncio.gather(*self.run_notification_client(self.__event_loop), self._loop())
+        await asyncio.gather(*self.run_notification_client(), self._loop())
 
     def run(self):
         """

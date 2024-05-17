@@ -3,7 +3,7 @@ import os
 
 from dotenv import load_dotenv
 
-from .client import HTTPEEWClient
+from .client.http import HTTPEEWClient
 from .config import Config
 from .logging import InterceptHandler, Logging
 from .notify.discord import DiscordNotification
