@@ -9,7 +9,6 @@ from ..earthquake.eew import EEW
 from ..logging import Logger
 from ..utils import MISSING
 from .abc import NotificationClient
-import traceback
 
 
 class EEWMessages:
@@ -17,13 +16,7 @@ class EEWMessages:
     Represents discord messages with EEW data.
     """
 
-    __slots__ = (
-        "eew",
-        "messages",
-        "__info_embed_cache",
-        "__intensity_embed_cache",
-        "__update_map",
-    )
+    __slots__ = ("eew", "messages", "_info_embed", "_intensity_embed", "map_url")
 
     def __init__(self, eew: EEW, messages: list[discord.Message]) -> None:
         """
@@ -36,19 +29,16 @@ class EEWMessages:
         """
         self.eew = eew
         self.messages = messages
-        self.__info_embed_cache: discord.Embed = None
-        self.__intensity_embed_cache: discord.Embed = None
-        self.__update_map: bool = False
+        self._info_embed: discord.Embed = None
+        self._intensity_embed: discord.Embed = None
+        self.map_url: str = None
 
     def info_embed(self) -> discord.Embed:
-        # cache
-        if self.__info_embed_cache is not None:
-            return self.__info_embed_cache
-
         # shortcut
         eew = self.eew
         eq = eew._earthquake
-        self.__info_embed_cache = (
+
+        self._info_embed = (
             discord.Embed(
                 title=f"地震速報　第{eew.serial}報{'(最終報)' if eew.final else ''}",
                 description=f"""\
@@ -63,19 +53,11 @@ class EEWMessages:
             .set_footer(text=f"發報單位．{eew.provider.display_name}")
         )
 
-        return self.__info_embed_cache
+        return self._info_embed
 
     def intensity_embed(self) -> discord.Embed:
-        # cache
-        # if self.__intensity_embed_cache is not None:
-        #     return self.__intensity_embed_cache
         current_time = int(datetime.now().timestamp())
-        url = (
-            "attachment://image.png"
-            if self.__update_map
-            else self.__intensity_embed_cache.image.url
-        )
-        self.__intensity_embed_cache = discord.Embed(
+        self._intensity_embed = discord.Embed(
             title="震度等級預估",
             description="\n".join(
                 (
@@ -90,28 +72,21 @@ class EEWMessages:
                 for city, intensity in self.eew.earthquake.city_max_intensity.items()
                 if intensity.intensity.value > 0
             ),
-            color=0xFFDE59,
-        ).set_image(url=url)
-        return self.__intensity_embed_cache
+            color=0xF39C12,
+        ).set_image(url="attachment://image.png")
+
+        return self._intensity_embed
 
     async def _send_singal_message(self, channel: discord.TextChannel, mention: str = None):
         try:
-            return await channel.send(mention, embed=self.__info_embed_cache)
+            return await channel.send(mention, embed=self._info_embed)
         except Exception:
             return None
 
-    async def _edit_singal_message(self, message: discord.Message):
-        if self.eew.earthquake.intensity_map is None:
-            return
+    async def _edit_singal_message(self, message: discord.Message, map_embed: discord.Embed):
         try:
-            kwargs = {"embeds": [self.__info_embed_cache, self.intensity_embed()]}
-            if self.__update_map:
-                kwargs["file"] = discord.File(
-                    self.eew.earthquake.intensity_map, filename="image.png"
-                )
-            return await message.edit(**kwargs)
+            return await message.edit(embeds=[self._info_embed, map_embed])
         except Exception:
-            print(traceback.format_exc())
             return None
 
     @classmethod
@@ -145,18 +120,29 @@ class EEWMessages:
                 ),
             )
         )
-        self.__update_map = True
         return self
 
     async def edit(self) -> None:
         """
         Edit the discord messages to update S wave arrival time.
         """
-        if self.eew.earthquake.intensity_map is None:
-            self.eew.earthquake.draw_map()
-        if self.eew.earthquake.city_max_intensity is None:
-            self.eew.earthquake.calc_city_max_intensity()
-        await asyncio.gather(*(self._edit_singal_message(message) for message in self.messages))
+        intensity_embed = self.intensity_embed()  # update intensity embed cache
+        if not self.map_url:
+            m = await self.messages[0].edit(
+                embeds=[self._info_embed, intensity_embed],
+                file=discord.File(self.eew.earthquake.intensity_map, "image.png"),
+            )
+            self.map_url = m.embeds[1].image.url
+            update = ()
+        else:
+            coro = self._edit_singal_message(self.messages[0], intensity_embed.copy())
+            update = (coro,)
+            intensity_embed.set_image(url=self.map_url)
+
+        await asyncio.gather(
+            *update,
+            *(self._edit_singal_message(msg, intensity_embed) for msg in self.messages[1:]),
+        )
 
     async def update_eew_data(self, eew: EEW) -> "EEWMessages":
         """
@@ -166,9 +152,11 @@ class EEWMessages:
         :type eew: EEW
         """
         self.eew = eew
-        self.__info_embed_cache = None
-        self.__update_map = True
+        self.map_url = None
         self.info_embed()
+        eew.earthquake.calc_city_max_intensity()
+        eew.earthquake.draw_map()
+
         return self
 
 
@@ -251,15 +239,18 @@ Guilds Count: {len(self.guilds)}
         m = await EEWMessages.send(eew, self.notification_channels)
         self.alerts[eew.id] = m
 
-        if not self.update_eew_messages.is_running():
-            self.update_eew_messages.start()
+        eew.earthquake.calc_city_max_intensity()
+        eew.earthquake.draw_map()
+
+        if not self.update_eew_messages_loop.is_running():
+            self.update_eew_messages_loop.start()
 
         return m
 
     async def update_eew(self, eew: EEW) -> EEWMessages:
         m = self.alerts.get(eew.id)
         if m is None:
-            m = await self.send_eew(eew)
+            return await self.send_eew(eew)
 
         return await m.update_eew_data(eew)
 
@@ -267,9 +258,9 @@ Guilds Count: {len(self.guilds)}
         self.alerts.pop(eew.id, None)
 
     @tasks.loop(seconds=1)
-    async def update_eew_messages(self):
+    async def update_eew_messages_loop(self):
         if not self.alerts:
-            self.update_eew_messages.stop()
+            self.update_eew_messages_loop.stop()
             return
 
         for m in self.alerts.values():

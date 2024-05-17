@@ -173,26 +173,42 @@ class EarthquakeData:
         if self._expected_intensity is None:
             self.calc_expected_intensity()
 
-        fig, ax = plt.subplots(figsize=(8, 12))
+        fig, ax = plt.subplots(figsize=(4, 6))
         ax: plt.Axes
         fig.patch.set_alpha(0)
         ax.set_axis_off()
         # map boundary
-        min_lon, max_lon = self.lon - 1.6, self.lon + 1.6
-        min_lat, max_lat = self.lat - 2.4, self.lat + 2.4
+        boundary_multiplier = 1  # TODO: change accdoring to mag
+        mid_lon, mid_lat = (121 + self.lon) / 2, (24 + self.lat) / 2
+        lon_boundary, lat_boundary = 1.6 * boundary_multiplier, 2.4 * boundary_multiplier
+        min_lon, max_lon = mid_lon - lon_boundary, mid_lon + lon_boundary
+        min_lat, max_lat = mid_lat - lat_boundary, mid_lat + lat_boundary
         ax.set_xlim(min_lon, max_lon)
         ax.set_ylim(min_lat, max_lat)
-        TOWN_DATA.plot(ax=ax, color="lightgrey", edgecolor="black")
+        TOWN_DATA.plot(
+            ax=ax, color="lightgrey", edgecolor="black", linewidth=0.22 / boundary_multiplier
+        )
         for code, region in self._expected_intensity.items():
             if region.intensity.value > 0:
                 TOWN_RANGE[code].plot(ax=ax, color=region.intensity.color)
-        COUNTRY_DATA.plot(ax=ax, edgecolor="black", facecolor="none", linewidth=0.8)
+        COUNTRY_DATA.plot(
+            ax=ax, edgecolor="black", facecolor="none", linewidth=0.64 / boundary_multiplier
+        )
         # draw epicentre
-        ax.scatter(self.lon, self.lat, marker="x", color="red", s=360, linewidths=4)
+        ax.scatter(
+            self.lon,
+            self.lat,
+            marker="x",
+            color="red",
+            s=160 / boundary_multiplier,
+            linewidths=2.5 / boundary_multiplier,
+        )
         _map = io.BytesIO()
         fig.savefig(_map, format="png", bbox_inches="tight")
         _map.seek(0)
         self._intensity_map = _map
+        # fig.savefig("image.png", bbox_inches="tight")
+        return _map
 
     def calc_city_max_intensity(self) -> dict[str, RegionExpectedIntensity]:
         """
