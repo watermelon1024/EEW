@@ -204,7 +204,7 @@ class EarthquakeData:
         self._city_max_intensity = {
             city: max(
                 (self._expected_intensity[region.code] for region in regions),
-                key=lambda x: x.intensity.value,
+                key=lambda x: x.intensity._float_value,
             )
             for city, regions in REGIONS_GROUP_BY_CITY.items()
         }

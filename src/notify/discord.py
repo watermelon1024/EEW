@@ -1,4 +1,5 @@
 import asyncio
+from datetime import datetime
 
 import discord
 from discord.ext import tasks
@@ -39,30 +40,35 @@ class EEWMessages:
         # shortcut
         eew = self.eew
         eq = eew._earthquake
-        self.__info_embed_cache = discord.Embed(
-            title=f"地震速報　第{eew.serial}報{'(最終報)' if eew.final else ''}",
-            description=f"""\
-{eq.time.strftime("%m/%d %H:%M:%S")} 左右{f"於 {eq.location.display_name}附近 " if eq.location.display_name else ""}發生有感地震，慎防搖晃。
-預估規模`{eq.mag}`，震源深度 {eq.depth}公里，最大震度{eq.max_intensity.display}""",
-            color=0xFF0000,
-        ).set_author(
-            name="Taiwan Earthquake Early Warning",
-            icon_url="https://cdn.discordapp.com/emojis/1018381096532070572.png",
+        self.__info_embed_cache = (
+            discord.Embed(
+                title=f"地震速報　第{eew.serial}報{'(最終報)' if eew.final else ''}",
+                description=f"""\
+{eq.time.strftime("%m/%d %H:%M:%S")} 左右{f"於 {eq.location.display_name}附近 " if eq.location.display_name else ""}發生有感地震，慎防搖晃
+預估規模`{eq.mag}`，震源深度 `{eq.depth}`公里，最大震度{eq.max_intensity.display}""",
+                color=0xFF0000,
+            )
+            .set_author(
+                name="Taiwan Earthquake Early Warning",
+                icon_url="https://cdn.discordapp.com/emojis/1018381096532070572.png",
+            )
+            .set_footer(f"資料來源．{eew.provider.display_name}")
         )
+
         return self.__info_embed_cache
 
     def intensity_embed(self) -> discord.Embed:
         # cache
         # if self.__intensity_embed_cache is not None:
         #     return self.__intensity_embed_cache
-
+        current_time = int(datetime.now().timestamp())
         self.__intensity_embed_cache = discord.Embed(
             title="震度等級預估",
             description="\n".join(
                 (
                     f"{city}最大震度：{intensity.region.name} {intensity.intensity.display} "
-                    f"<t:{intensity.distance.s_time.timestamp()}:R>內抵達"
-                    if intensity.distance.s_left_time().seconds > 0
+                    f"<t:{arrival_time}:R>內抵達"
+                    if (arrival_time := int(intensity.distance.s_time.timestamp())) > current_time
                     else "已抵達"
                 )
                 for city, intensity in self.eew.earthquake.city_max_intensity.items()
