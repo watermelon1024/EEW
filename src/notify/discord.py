@@ -3,6 +3,7 @@ import asyncio
 import discord
 from discord.ext import tasks
 
+from ..config import Config
 from ..earthquake.eew import EEW
 from ..logging import Logger
 from ..utils import MISSING
@@ -147,14 +148,14 @@ class DiscordNotification(NotificationClient, discord.Bot):
     # eew-id: EEWMessages
     alerts: dict[str, EEWMessages] = {}
 
-    def __init__(self, logger: Logger, config: dict, token: str) -> None:
+    def __init__(self, logger: Logger, config: Config, token: str) -> None:
         """
         Initialize a new discord notification client.
 
         :param logger: The logger instance.
         :type logger: Logger
         :param config: The configuration.
-        :type config: dict
+        :type config: Config
         :param token: The discord bot token.
         :type token: str
         """
@@ -166,7 +167,8 @@ class DiscordNotification(NotificationClient, discord.Bot):
 
         self._client_ready = False
         intents = discord.Intents.default()
-        super().__init__(owner_ids=self.config["discord"]["owners"], intents=intents)
+        owner_ids = config["discord"].get("owners")
+        super().__init__(owner_ids=owner_ids, intents=intents)
 
     async def get_or_fetch_channel(self, id: int, default=MISSING):
         try:
@@ -214,7 +216,7 @@ Guilds Count: {len(self.guilds)}
         self.logger.info("Discord Bot closed.")
 
     async def send_eew(self, eew: EEW) -> EEWMessages:
-        m = await EEWMessages.send(EEW, self.notification_channels)
+        m = await EEWMessages.send(eew, self.notification_channels)
         self.alerts[eew.id, m]
 
         if not self.update_eew_messages.is_running():
