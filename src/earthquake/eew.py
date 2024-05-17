@@ -29,7 +29,7 @@ class EarthquakeData:
         "_magnitude",
         "_depth",
         "_time",
-        "_city_max_intensity",
+        "_max_intensity",
         "_city_max_intensity",
         "_expected_intensity",
         "_intensity_map",
@@ -61,7 +61,7 @@ class EarthquakeData:
         self._magnitude = magnitude
         self._depth = depth
         self._time = time
-        self._city_max_intensity = max_intensity
+        self._max_intensity = max_intensity
         self._city_max_intensity: dict[str, RegionExpectedIntensity] = None
         self._expected_intensity: dict[int, RegionExpectedIntensity] = None
         self._intensity_map: io.BytesIO = None
@@ -113,7 +113,7 @@ class EarthquakeData:
         """
         The maximum intensity of the earthquake.
         """
-        return self._city_max_intensity
+        return self._max_intensity
 
     @property
     def city_max_intensity(self) -> dict[str, RegionExpectedIntensity]:
@@ -173,7 +173,7 @@ class EarthquakeData:
         if self._expected_intensity is None:
             self.calc_expected_intensity()
 
-        fig, ax = plt.subplots(figsize=(12, 24))
+        fig, ax = plt.subplots(figsize=(8, 12))
         ax: plt.Axes
         fig.patch.set_alpha(0)
         ax.set_axis_off()
@@ -189,8 +189,10 @@ class EarthquakeData:
         COUNTRY_DATA.plot(ax=ax, edgecolor="black", facecolor="none", linewidth=0.8)
         # draw epicentre
         ax.scatter(self.lon, self.lat, marker="x", color="red", s=360, linewidths=4)
-        self._intensity_map = io.BytesIO()
-        fig.savefig(self._intensity_map, format="png", bbox_inches="tight")
+        _map = io.BytesIO()
+        fig.savefig(_map, format="png", bbox_inches="tight")
+        _map.seek(0)
+        self._intensity_map = _map
 
     def calc_city_max_intensity(self) -> dict[str, RegionExpectedIntensity]:
         """

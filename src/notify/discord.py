@@ -9,6 +9,7 @@ from ..earthquake.eew import EEW
 from ..logging import Logger
 from ..utils import MISSING
 from .abc import NotificationClient
+import traceback
 
 
 class EEWMessages:
@@ -16,7 +17,13 @@ class EEWMessages:
     Represents discord messages with EEW data.
     """
 
-    __slots__ = ("eew", "messages", "__info_embed_cache", "__intensity_embed_cache")
+    __slots__ = (
+        "eew",
+        "messages",
+        "__info_embed_cache",
+        "__intensity_embed_cache",
+        "__update_map",
+    )
 
     def __init__(self, eew: EEW, messages: list[discord.Message]) -> None:
         """
@@ -31,6 +38,7 @@ class EEWMessages:
         self.messages = messages
         self.__info_embed_cache: discord.Embed = None
         self.__intensity_embed_cache: discord.Embed = None
+        self.__update_map: bool = False
 
     def info_embed(self) -> discord.Embed:
         # cache
@@ -52,7 +60,7 @@ class EEWMessages:
                 name="Taiwan Earthquake Early Warning",
                 icon_url="https://cdn.discordapp.com/emojis/1018381096532070572.png",
             )
-            .set_footer(f"資料來源．{eew.provider.display_name}")
+            .set_footer(text=f"發報單位．{eew.provider.display_name}")
         )
 
         return self.__info_embed_cache
@@ -62,19 +70,28 @@ class EEWMessages:
         # if self.__intensity_embed_cache is not None:
         #     return self.__intensity_embed_cache
         current_time = int(datetime.now().timestamp())
+        url = (
+            "attachment://image.png"
+            if self.__update_map
+            else self.__intensity_embed_cache.image.url
+        )
         self.__intensity_embed_cache = discord.Embed(
             title="震度等級預估",
             description="\n".join(
                 (
                     f"{city}最大震度：{intensity.region.name} {intensity.intensity.display} "
-                    f"<t:{arrival_time}:R>內抵達"
-                    if (arrival_time := int(intensity.distance.s_time.timestamp())) > current_time
-                    else "已抵達"
+                    + (
+                        f"<t:{arrival_time}:R>抵達"
+                        if (arrival_time := int(intensity.distance.s_time.timestamp()))
+                        > current_time
+                        else "已抵達"
+                    )
                 )
                 for city, intensity in self.eew.earthquake.city_max_intensity.items()
+                if intensity.intensity.value > 0
             ),
-            image="attachment://image.png",
-        )
+            color=0xFFDE59,
+        ).set_image(url=url)
         return self.__intensity_embed_cache
 
     async def _send_singal_message(self, channel: discord.TextChannel, mention: str = None):
@@ -85,13 +102,16 @@ class EEWMessages:
 
     async def _edit_singal_message(self, message: discord.Message):
         if self.eew.earthquake.intensity_map is None:
-            self.eew.earthquake.draw_map()
+            return
         try:
-            return await message.edit(
-                embeds=[self.__info_embed_cache, self.intensity_embed()],
-                file=discord.File(self.eew.earthquake.intensity_map, filename="image.png"),
-            )
+            kwargs = {"embeds": [self.__info_embed_cache, self.intensity_embed()]}
+            if self.__update_map:
+                kwargs["file"] = discord.File(
+                    self.eew.earthquake.intensity_map, filename="image.png"
+                )
+            return await message.edit(**kwargs)
         except Exception:
+            print(traceback.format_exc())
             return None
 
     @classmethod
@@ -125,12 +145,17 @@ class EEWMessages:
                 ),
             )
         )
+        self.__update_map = True
         return self
 
     async def edit(self) -> None:
         """
         Edit the discord messages to update S wave arrival time.
         """
+        if self.eew.earthquake.intensity_map is None:
+            self.eew.earthquake.draw_map()
+        if self.eew.earthquake.city_max_intensity is None:
+            self.eew.earthquake.calc_city_max_intensity()
         await asyncio.gather(*(self._edit_singal_message(message) for message in self.messages))
 
     async def update_eew_data(self, eew: EEW) -> "EEWMessages":
@@ -142,6 +167,7 @@ class EEWMessages:
         """
         self.eew = eew
         self.__info_embed_cache = None
+        self.__update_map = True
         self.info_embed()
         return self
 
@@ -223,7 +249,7 @@ Guilds Count: {len(self.guilds)}
 
     async def send_eew(self, eew: EEW) -> EEWMessages:
         m = await EEWMessages.send(eew, self.notification_channels)
-        self.alerts[eew.id, m]
+        self.alerts[eew.id] = m
 
         if not self.update_eew_messages.is_running():
             self.update_eew_messages.start()

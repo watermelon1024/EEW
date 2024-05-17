@@ -76,7 +76,7 @@ class HTTPEEWClient(EEWClient):
         for id in _check_finished_alerts:
             eew = self._alerts.pop(id, None)
             if eew is not None:
-                self.lift_alert(eew)
+                await self.lift_alert(eew)
 
     async def _loop(self):
         self.__event_loop = asyncio.get_event_loop()
