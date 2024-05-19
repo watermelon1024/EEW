@@ -138,13 +138,15 @@ class EEWMessages:
                 ),
             )
         )
+        if not self.messages:
+            return None
         return self
 
     async def edit(self) -> None:
         """
         Edit the discord messages to update S wave arrival time.
         """
-        intensity_embed = self.intensity_embed()  # update intensity embed cache
+        intensity_embed = self.intensity_embed()
         if not self.map_url:
             m = await self.messages[0].edit(
                 embeds=[self._info_embed, intensity_embed],
