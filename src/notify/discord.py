@@ -17,7 +17,15 @@ class EEWMessages:
     Represents discord messages with EEW data.
     """
 
-    __slots__ = ("bot", "eew", "messages", "_info_embed", "_intensity_embed", "map_url")
+    __slots__ = (
+        "bot",
+        "eew",
+        "messages",
+        "_info_embed",
+        "_intensity_embed",
+        "map_url",
+        "_bot_ping",
+    )
 
     def __init__(
         self, bot: "DiscordNotification", eew: EEW, messages: list[discord.Message]
@@ -38,32 +46,31 @@ class EEWMessages:
         self._info_embed: discord.Embed = None
         self._intensity_embed: discord.Embed = None
         self.map_url: str = None
+        self._bot_ping: float = self.bot.latency
 
     def info_embed(self) -> discord.Embed:
         # shortcut
         eew = self.eew
         eq = eew._earthquake
 
-        self._info_embed = (
-            discord.Embed(
-                title=f"地震速報　第 {eew.serial} 報{'（最終報）' if eew.final else ''}",
-                description=f"""\
-{eq.time.strftime("%m/%d %H:%M:%S")} {f"於 {eq.location.display_name} " if eq.location.display_name else ""}發生有感地震，慎防搖晃！
-預估規模 `{eq.mag}`，震源深度 `{eq.depth}` 公里，最大震度{eq.max_intensity.display}""",
-                color=0xFF0000,
-            )
-            .set_author(
-                name="Taiwan Earthquake Early Warning",
-                icon_url="https://cdn.discordapp.com/emojis/1018381096532070572.png",
-            )
-            .set_footer(text=f"發報單位．{eew.provider.display_name}")
+        self._info_embed = discord.Embed(
+            title=f"地震速報　第 {eew.serial} 報{'（最終報）' if eew.final else ''}",
+            description=f"""\
+<t:{int(eq.time.timestamp())}:T> {f"於 {eq.location.display_name} " if eq.location.display_name else ""}發生有感地震，慎防搖晃！
+預估規模 `{eq.mag}`，震源深度 `{eq.depth}` 公里，最大震度{eq.max_intensity.display}
+發報單位．{eew.provider.display_name}｜發報時間．<t:{int(eew.time.timestamp())}:T>""",
+            color=0xFF0000,
+        ).set_author(
+            name="Taiwan Earthquake Early Warning",
+            icon_url="https://cdn.discordapp.com/emojis/1018381096532070572.png",
         )
 
         return self._info_embed
 
     def intensity_embed(self) -> discord.Embed:
-        ping = self.bot.latency
-        current_time = int(datetime.now().timestamp() + (ping if math.isfinite(ping) else 0))
+        if math.isfinite(ping := self.bot.latency):
+            self._bot_ping = ping
+        current_time = int(datetime.now().timestamp() + self._bot_ping)
         self._intensity_embed = discord.Embed(
             title="震度等級預估",
             description="各縣市預估最大震度｜預計抵達時間\n"
@@ -74,7 +81,7 @@ class EEWMessages:
                         f"<t:{arrival_time}:R>抵達"
                         if (arrival_time := int(intensity.distance.s_time.timestamp()))
                         > current_time
-                        else "已抵達"
+                        else "⚠️已抵達"
                     )
                 )
                 for city, intensity in self.eew.earthquake.city_max_intensity.items()
@@ -88,13 +95,15 @@ class EEWMessages:
     async def _send_singal_message(self, channel: discord.TextChannel, mention: str = None):
         try:
             return await channel.send(mention, embed=self._info_embed)
-        except Exception:
+        except Exception as e:
+            self.bot.logger.exception(f"Failed to send message in {channel.name}", exc_info=e)
             return None
 
     async def _edit_singal_message(self, message: discord.Message, map_embed: discord.Embed):
         try:
             return await message.edit(embeds=[self._info_embed, map_embed])
-        except Exception:
+        except Exception as e:
+            self.bot.logger.exception(f"Failed to edit message {message.id}", exc_info=e)
             return None
 
     @classmethod
