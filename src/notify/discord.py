@@ -27,9 +27,7 @@ class EEWMessages:
         "_bot_ping",
     )
 
-    def __init__(
-        self, bot: "DiscordNotification", eew: EEW, messages: list[discord.Message]
-    ) -> None:
+    def __init__(self, bot: "DiscordNotification", eew: EEW, messages: list[discord.Message]) -> None:
         """
         Initialize a new discord message.
 
@@ -67,10 +65,11 @@ class EEWMessages:
 
         return self._info_embed
 
+    def get_ping(self) -> float:
+        return 0 if math.isnan(self._bot_ping) else self._bot_ping
+
     def intensity_embed(self) -> discord.Embed:
-        if math.isfinite(ping := self.bot.latency):
-            self._bot_ping = ping
-        current_time = int(datetime.now().timestamp() + self._bot_ping)
+        current_time = int(datetime.now().timestamp() + self.get_ping())
         self._intensity_embed = discord.Embed(
             title="震度等級預估",
             description="各縣市預估最大震度｜預計抵達時間\n"
@@ -79,8 +78,7 @@ class EEWMessages:
                     f"{city} {intensity.region.name.ljust(4, '　')} {intensity.intensity.display}｜"
                     + (
                         f"<t:{arrival_time}:R>抵達"
-                        if (arrival_time := int(intensity.distance.s_time.timestamp()))
-                        > current_time
+                        if (arrival_time := int(intensity.distance.s_time.timestamp())) > current_time
                         else "⚠️已抵達"
                     )
                 )
@@ -131,10 +129,7 @@ class EEWMessages:
             filter(
                 None,
                 await asyncio.gather(
-                    *(
-                        self._send_singal_message(d["channel"], d["mention"])
-                        for d in notification_channels
-                    )
+                    *(self._send_singal_message(d["channel"], d["mention"]) for d in notification_channels)
                 ),
             )
         )
