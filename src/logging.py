@@ -13,9 +13,7 @@ class Logging:
     Represents a logger class.
     """
 
-    def __init__(
-        self, retention: timedelta, debug_mode: bool = False, format: str = MISSING
-    ) -> None:
+    def __init__(self, retention: timedelta, debug_mode: bool = False, format: str = MISSING) -> None:
         """
         Initialize the logger instance.
         """
@@ -50,9 +48,7 @@ class Logging:
             enqueue=True,
             format=format,
         )
-        self._logger.debug(
-            f"Logger initialized. Debug mode {'enabled' if debug_mode else 'disabled'}."
-        )
+        self._logger.debug(f"Logger initialized. Debug mode {'enabled' if debug_mode else 'disabled'}.")
 
     def get_logger(self) -> Logger:
         """
