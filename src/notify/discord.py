@@ -251,10 +251,10 @@ class DiscordNotification(NotificationClient, discord.Bot):
         self.logger.info(
             "Discord Bot started.\n"
             "-------------------------\n"
-            f"Logged in as: {self.user.name}#{self.user.discriminator} ({self.user.id})"  # type: ignore
+            f"Logged in as: {self.user.name}#{self.user.discriminator} ({self.user.id})\n"  # type: ignore
             f" API Latency: {self.latency * 1000:.2f} ms\n"
             f"Guilds Count: {len(self.guilds)}\n"
-            "-------------------------\n"
+            "-------------------------"
         )
         self._client_ready = True
 
