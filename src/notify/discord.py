@@ -27,7 +27,7 @@ class EEWMessages:
         "_info_embed",
         "_intensity_embed",
         "map_url",
-        "_bot_ping",
+        "_bot_latency",
     )
 
     def __init__(self, bot: "DiscordNotification", eew: EEW, messages: list[discord.Message]) -> None:
@@ -47,7 +47,7 @@ class EEWMessages:
         self._info_embed: Optional[discord.Embed] = None
         self._intensity_embed: Optional[discord.Embed] = None
         self.map_url: Optional[str] = None
-        self._bot_ping: float = self.bot.latency
+        self._bot_latency: float = 0
 
     def info_embed(self) -> discord.Embed:
         # shortcut
@@ -68,11 +68,16 @@ class EEWMessages:
 
         return self._info_embed
 
-    def get_ping(self) -> float:
-        return 0 if math.isnan(self._bot_ping) else self._bot_ping
+    def get_latency(self) -> float:
+        """
+        Get the bot latency.
+        """
+        if math.isfinite(ping := self.bot.latency):
+            self._bot_latency = ping
+        return self._bot_latency
 
     def intensity_embed(self) -> discord.Embed:
-        current_time = int(datetime.now().timestamp() + self.get_ping())
+        current_time = int(datetime.now().timestamp() + self.get_latency())
         self._intensity_embed = discord.Embed(
             title="震度等級預估",
             description="各縣市預估最大震度｜預計抵達時間\n"
