@@ -30,7 +30,9 @@ class EEWMessages:
         "_bot_latency",
     )
 
-    def __init__(self, bot: "DiscordNotification", eew: EEW, messages: list[discord.Message]) -> None:
+    def __init__(
+        self, bot: "DiscordNotification", eew: EEW, messages: list[discord.Message]
+    ) -> None:
         """
         Initialize a new discord message.
 
@@ -57,7 +59,7 @@ class EEWMessages:
         self._info_embed = discord.Embed(
             title=f"地震速報　第 {eew.serial} 報{'（最終報）' if eew.final else ''}",
             description=f"""\
-<t:{int(eq.time.timestamp())}:T> {f"於 {local} " if (local := eq.location.display_name) else ""}發生有感地震，慎防搖晃！
+<t:{int(eq.time.timestamp())}:T> 於 {eq.location.display_name or ""}(`{eq.lon:.2f}`, `{eq.lat:.2f}`) 發生有感地震，慎防搖晃！
 預估規模 `{eq.mag}`，震源深度 `{eq.depth}` 公里，最大震度{eq.max_intensity.display}
 發報單位．{eew.provider.display_name}｜發報時間．<t:{int(eew.time.timestamp())}:T>""",
             color=0xFF0000,
@@ -86,19 +88,24 @@ class EEWMessages:
                     f"{city} {intensity.region.name.ljust(4, '　')} {intensity.intensity.display}｜"
                     + (
                         f"<t:{arrival_time}:R>抵達"
-                        if (arrival_time := int(intensity.distance.s_time.timestamp())) > current_time
+                        if (arrival_time := int(intensity.distance.s_time.timestamp()))
+                        > current_time
                         else "⚠️已抵達"
                     )
                 )
                 for city, intensity in self.eew.earthquake.city_max_intensity.items()
                 if intensity.intensity.value > 0
-            ),
+            )
+            + f"\n上次更新：<t:{current_time}:T> (<t:{current_time}:R>)",
             color=0xF39C12,
-        ).set_image(url="attachment://image.png")
+            image="attachment://image.png",
+        ).set_footer(text="僅供參考，實際情況以氣象署公布之資料為準")
 
         return self._intensity_embed
 
-    async def _send_singal_message(self, channel: discord.TextChannel, mention: Optional[str] = None):
+    async def _send_singal_message(
+        self, channel: discord.TextChannel, mention: Optional[str] = None
+    ):
         try:
             return await channel.send(mention, embed=self._info_embed)  # type: ignore
         except Exception as e:
@@ -137,7 +144,10 @@ class EEWMessages:
             filter(
                 None,
                 await asyncio.gather(
-                    *(self._send_singal_message(d["channel"], d["mention"]) for d in notification_channels)
+                    *(
+                        self._send_singal_message(d["channel"], d["mention"])
+                        for d in notification_channels
+                    )
                 ),
             )
         )
@@ -239,7 +249,9 @@ class DiscordNotification(NotificationClient, discord.Bot):
                 self.logger.warning(f"Ignore channel '{data['id']}' because it was not found.")
                 continue
             elif not isinstance(channel, discord.TextChannel):
-                self.logger.warning(f"Ignore channel '{channel.id}' because it is not a text channel.")
+                self.logger.warning(
+                    f"Ignore channel '{channel.id}' because it is not a text channel."
+                )
                 continue
             mention = (
                 None
