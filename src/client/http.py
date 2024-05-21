@@ -28,6 +28,17 @@ class HTTPEEWClient(EEWClient):
         eew = EEW.from_dict(data)
         self._alerts[eew.id] = eew
 
+        self.logger.info(
+            "New EEW alert is detected!\n"
+            "--------------------------------\n"
+            f"       ID: {eew.id} (Serial {eew.serial})\n"
+            f" Location: {eew.earthquake.location.display_name}({eew.earthquake.lon}, {eew.earthquake.lat})\n"
+            f"Magnitude: {eew.earthquake.mag}\n"
+            f"    Depth: {eew.earthquake.depth}km\n"
+            f"     Time: {eew.earthquake.time.strftime('%Y/%m/%d %H:%M:%S')}\n"
+            "--------------------------------"
+        )
+
         # call custom notification client
         await asyncio.gather(*(client.send_eew(eew) for client in self._notification_client))
 
@@ -36,6 +47,17 @@ class HTTPEEWClient(EEWClient):
     async def update_alert(self, data: dict):
         eew = EEW.from_dict(data)
         self._alerts[eew.id] = eew
+
+        self.logger.info(
+            "EEW alert updated\n"
+            "--------------------------------\n"
+            f"       ID: {eew.id} (Serial {eew.serial})\n"
+            f" Location: {eew.earthquake.location.display_name}({eew.earthquake.lon:.2f}, {eew.earthquake.lat:.2f})\n"
+            f"Magnitude: {eew.earthquake.mag}\n"
+            f"    Depth: {eew.earthquake.depth}km\n"
+            f"     Time: {eew.earthquake.time.strftime('%Y/%m/%d %H:%M:%S')}\n"
+            "--------------------------------"
+        )
 
         # call custom notification client
         await asyncio.gather(*(client.update_eew(eew) for client in self._notification_client))
