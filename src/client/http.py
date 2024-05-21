@@ -29,8 +29,7 @@ class HTTPEEWClient(EEWClient):
         self._alerts[eew.id] = eew
 
         # call custom notification client
-        for client in self._notification_client:
-            await client.send_eew(eew)
+        await asyncio.gather(*(client.send_eew(eew) for client in self._notification_client))
 
         return eew
 
@@ -39,15 +38,13 @@ class HTTPEEWClient(EEWClient):
         self._alerts[eew.id] = eew
 
         # call custom notification client
-        for client in self._notification_client:
-            await client.update_eew(eew)
+        await asyncio.gather(*(client.update_eew(eew) for client in self._notification_client))
 
         return eew
 
     async def lift_alert(self, eew: EEW):
         # call custom notification client
-        for client in self._notification_client:
-            await client.lift_eew(eew)
+        await asyncio.gather(*(client.lift_eew(eew) for client in self._notification_client))
 
     async def _get_request(self, retry: int = 0):
         try:
