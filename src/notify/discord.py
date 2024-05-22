@@ -26,8 +26,10 @@ class EEWMessages:
         "messages",
         "_info_embed",
         "_intensity_embed",
+        "_region_intensity",
         "map_url",
         "_bot_latency",
+        "_lift_time",
     )
 
     def __init__(
@@ -46,8 +48,10 @@ class EEWMessages:
         self.bot = bot
         self.eew = eew
         self.messages = messages
+
         self._info_embed: Optional[discord.Embed] = None
         self._intensity_embed: Optional[discord.Embed] = None
+        self._region_intensity: Optional[dict[tuple[str, str], tuple[str, int]]] = None
         self.map_url: Optional[str] = None
         self._bot_latency: float = 0
 
@@ -79,6 +83,10 @@ class EEWMessages:
         return self._bot_latency
 
     def intensity_embed(self) -> discord.Embed:
+        if self._region_intensity is None:
+            self._intensity_embed = discord.Embed(title="震度等級預估", description="計算中...")
+            return self._intensity_embed
+
         current_time = int(datetime.now().timestamp() + self.get_latency())
         self._intensity_embed = discord.Embed(
             title="震度等級預估",
@@ -102,6 +110,19 @@ class EEWMessages:
         ).set_footer(text="僅供參考，實際情況以氣象署公布之資料為準")
 
         return self._intensity_embed
+
+    def calc_intensity_data(self):
+        self.eew.earthquake.calc_city_max_intensity()
+        self.eew.earthquake.draw_map()
+        self._region_intensity = {
+            (city, intensity.region.name.ljust(4, "　")): (
+                intensity.intensity.display,
+                int(intensity.distance.s_time.timestamp()),
+            )
+            for city, intensity in self.eew.earthquake.city_max_intensity.items()
+            if intensity.intensity.value > 0
+        }
+        self._lift_time = max(x[1] for x in self._region_intensity.values()) + 10
 
     async def _send_singal_message(
         self, channel: discord.TextChannel, mention: Optional[str] = None
@@ -191,10 +212,23 @@ class EEWMessages:
         self.eew = eew
         self.map_url = None
         self.info_embed()
-        eew.earthquake.calc_city_max_intensity()
-        eew.earthquake.draw_map()
+        self.calc_intensity_data()
 
         return self
+
+    async def lift_eew(self):
+        """
+        Lift the EEW alert.
+        """
+        self._info_embed.title = f"地震速報（共 {self.eew.serial} 報）播報結束"
+        original_intensity_embed = self._intensity_embed.copy().set_image(
+            url="attachment://image.png"
+        )
+
+        await asyncio.gather(
+            self._edit_singal_message(self.messages[0], original_intensity_embed),
+            *(self._edit_singal_message(msg, self._intensity_embed) for msg in self.messages[1:]),
+        )
 
 
 class DiscordNotification(NotificationClient, discord.Bot):
@@ -286,14 +320,12 @@ class DiscordNotification(NotificationClient, discord.Bot):
         if m is None:
             self.logger.warning("Failed to send EEW message.")
             return None
-
         self.alerts[eew.id] = m
-
-        eew.earthquake.calc_city_max_intensity()
-        eew.earthquake.draw_map()
 
         if not self.update_eew_messages_loop.is_running():
             self.update_eew_messages_loop.start()
+
+        m.calc_intensity_data()
 
         return m
 
@@ -305,13 +337,18 @@ class DiscordNotification(NotificationClient, discord.Bot):
         return await m.update_eew_data(eew)
 
     async def lift_eew(self, eew: EEW):
-        self.alerts.pop(eew.id, None)
+        m = self.alerts.pop(eew.id, None)
+        if m is not None:
+            await m.lift_eew()
 
     @tasks.loop(seconds=1)
     async def update_eew_messages_loop(self):
         if not self.alerts:
             self.update_eew_messages_loop.stop()
             return
-
+        now_time = int(datetime.now())
         for m in self.alerts.values():
+            if now_time > m._lift_time:
+                await self.lift_eew()
+                continue
             await m.edit()
