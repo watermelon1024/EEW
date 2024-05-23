@@ -346,9 +346,9 @@ class DiscordNotification(NotificationClient, discord.Bot):
         if not self.alerts:
             self.update_eew_messages_loop.stop()
             return
-        now_time = int(datetime.now())
-        for m in self.alerts.values():
+        now_time = int(datetime.now().timestamp())
+        for m in list(self.alerts.values()):
             if now_time > m._lift_time:
-                await self.lift_eew()
-                continue
-            await m.edit()
+                await self.lift_eew(m.eew)
+            else:
+                await m.edit()
