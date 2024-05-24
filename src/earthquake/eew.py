@@ -185,15 +185,11 @@ class EarthquakeData:
         min_lat, max_lat = mid_lat - lat_boundary, mid_lat + lat_boundary
         ax.set_xlim(min_lon, max_lon)
         ax.set_ylim(min_lat, max_lat)
-        TOWN_DATA.plot(
-            ax=ax, color="lightgrey", edgecolor="black", linewidth=0.22 / boundary_multiplier
-        )
+        TOWN_DATA.plot(ax=ax, color="lightgrey", edgecolor="black", linewidth=0.22 / boundary_multiplier)
         for code, region in self._expected_intensity.items():
             if region.intensity.value > 0:
                 TOWN_RANGE[code].plot(ax=ax, color=region.intensity.color)
-        COUNTRY_DATA.plot(
-            ax=ax, edgecolor="black", facecolor="none", linewidth=0.64 / boundary_multiplier
-        )
+        COUNTRY_DATA.plot(ax=ax, edgecolor="black", facecolor="none", linewidth=0.64 / boundary_multiplier)
         # draw epicentre
         ax.scatter(
             self.lon,

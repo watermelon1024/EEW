@@ -186,9 +186,7 @@ class RegionExpectedIntensity:
         return self._distance
 
     def __repr__(self) -> str:
-        return (
-            f"RegionExpectedIntensity({self._region}, {self._intensity}, {self._distance.s_time})"
-        )
+        return f"RegionExpectedIntensity({self._region}, {self._intensity}, {self._distance.s_time})"
 
 
 def _calculate_surface_distance(p1: Location, p2: Location) -> float:

@@ -31,9 +31,7 @@ class EEWMessages:
         "_lift_time",
     )
 
-    def __init__(
-        self, bot: "DiscordNotification", eew: EEW, messages: list[discord.Message]
-    ) -> None:
+    def __init__(self, bot: "DiscordNotification", eew: EEW, messages: list[discord.Message]) -> None:
         """
         Initialize a new discord message.
 
@@ -95,8 +93,7 @@ class EEWMessages:
                     f"{city} {intensity.region.name.ljust(4, '　')} {intensity.intensity.display}｜"
                     + (
                         f"<t:{arrival_time}:R>抵達"
-                        if (arrival_time := int(intensity.distance.s_time.timestamp()))
-                        > current_time
+                        if (arrival_time := int(intensity.distance.s_time.timestamp())) > current_time
                         else "⚠️已抵達"
                     )
                 )
@@ -123,9 +120,7 @@ class EEWMessages:
         }
         self._lift_time = max(x[1] for x in self._region_intensity.values()) + 10
 
-    async def _send_singal_message(
-        self, channel: discord.TextChannel, mention: Optional[str] = None
-    ):
+    async def _send_singal_message(self, channel: discord.TextChannel, mention: Optional[str] = None):
         try:
             return await channel.send(mention, embed=self._info_embed)  # type: ignore
         except Exception as e:
@@ -164,10 +159,7 @@ class EEWMessages:
             filter(
                 None,
                 await asyncio.gather(
-                    *(
-                        self._send_singal_message(d["channel"], d["mention"])
-                        for d in notification_channels
-                    )
+                    *(self._send_singal_message(d["channel"], d["mention"]) for d in notification_channels)
                 ),
             )
         )
@@ -220,9 +212,7 @@ class EEWMessages:
         Lift the EEW alert.
         """
         self._info_embed.title = f"地震速報（共 {self.eew.serial} 報）播報結束"
-        original_intensity_embed = self._intensity_embed.copy().set_image(
-            url="attachment://image.png"
-        )
+        original_intensity_embed = self._intensity_embed.copy().set_image(url="attachment://image.png")
 
         await asyncio.gather(
             self._edit_singal_message(self.messages[0], original_intensity_embed),
@@ -282,9 +272,7 @@ class DiscordNotification(NotificationClient, discord.Bot):
                 self.logger.warning(f"Ignore channel '{data['id']}' because it was not found.")
                 continue
             elif not isinstance(channel, discord.TextChannel):
-                self.logger.warning(
-                    f"Ignore channel '{channel.id}' because it is not a text channel."
-                )
+                self.logger.warning(f"Ignore channel '{channel.id}' because it is not a text channel.")
                 continue
             mention = (
                 None

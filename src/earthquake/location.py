@@ -41,7 +41,7 @@ class Location:
         return f"Location({self._longitude}, {self._latitude})"
 
     def __iter__(self):
-        yield from (self._longitude, self._latitude)
+        return iter((self._longitude, self._latitude))
 
     def __eq__(self, other):
         return (
@@ -174,9 +174,7 @@ class RegionLocation(Location):
         return f"RegionLocation({self._name} at ({self._longitude}, {self._latitude})"
 
 
-def _parse_region_dict(
-    data: dict[str, dict[str, dict[str, int | float | str]]]
-) -> dict[int, RegionLocation]:
+def _parse_region_dict(data: dict[str, dict[str, dict[str, int | float | str]]]) -> dict[int, RegionLocation]:
     all_regions = {}
     for city, regoins in data.items():
         for name, d in regoins.items():
