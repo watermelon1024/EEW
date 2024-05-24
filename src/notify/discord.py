@@ -1,11 +1,10 @@
 import asyncio
-from datetime import datetime
 import math
+from datetime import datetime
 from typing import Optional
 
 import discord
 from discord.ext import tasks
-
 
 from ..config import Config
 from ..earthquake.eew import EEW
@@ -255,7 +254,7 @@ class DiscordNotification(NotificationClient, discord.Bot):
         self.config = config
         self.token = token
 
-        logger.disable("discord")  # avoid pycord shard info spamming the console
+        # logger.disable("discord")  # avoid pycord shard info spamming the console
 
         self._client_ready = False
         intents = discord.Intents.default()
@@ -305,7 +304,7 @@ class DiscordNotification(NotificationClient, discord.Bot):
         self._client_ready = True
 
     async def run(self) -> None:
-        return await super().start(self.token, reconnect=True)
+        await super().start(self.token, reconnect=True)
 
     async def close(self) -> None:
         await super().close()

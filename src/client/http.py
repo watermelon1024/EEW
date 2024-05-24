@@ -112,11 +112,14 @@ class HTTPEEWClient(EEWClient):
         Note: This coro won't finish forever until user interrupt it.
         """
         self.recreate_session()
-        await asyncio.gather(*self.run_notification_client(), self._loop())
+        self.run_notification_client()
+        await self._loop()
 
     def run(self):
         """
         Start the client.
         Note: This is a blocking call. If you want to control your own event loop, use `start` instead.
         """
-        asyncio.run(self.start())
+        self.__event_loop = asyncio.get_event_loop()
+        self.__event_loop.create_task(self.start())
+        self.__event_loop.run_forever()

@@ -1,3 +1,4 @@
+import asyncio
 from abc import ABC, abstractmethod
 
 from ..config import Config
@@ -40,9 +41,11 @@ class EEWClient(ABC):
 
     def run_notification_client(self):
         """
-        Run the notification client.
+        Run all the notification clients in event loop.
         """
-        return [client.run() for client in self._notification_client]
+        self.__event_loop = asyncio.get_event_loop()
+        for client in self._notification_client:
+            self.__event_loop.create_task(client.run())
 
     @abstractmethod
     def run(self):
