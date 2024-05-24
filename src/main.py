@@ -36,5 +36,4 @@ def main():
             exit(1)
         client.add_notification(DiscordNotification(logger, config, token))
 
-    logger.info("Starting EEW client...")
     client.run()

@@ -294,7 +294,7 @@ class DiscordNotification(NotificationClient, discord.Bot):
             self.notification_channels.append({"channel": channel, "mention": mention})
 
         self.logger.info(
-            "Discord Bot started.\n"
+            "Discord Bot is ready.\n"
             "-------------------------\n"
             f"Logged in as: {self.user.name}#{self.user.discriminator} ({self.user.id})\n"  # type: ignore
             f" API Latency: {self.latency * 1000:.2f} ms\n"
@@ -304,6 +304,7 @@ class DiscordNotification(NotificationClient, discord.Bot):
         self._client_ready = True
 
     async def run(self) -> None:
+        self.logger.info("Starting Discord Bot.")
         await super().start(self.token, reconnect=True)
 
     async def close(self) -> None:

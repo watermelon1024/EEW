@@ -120,6 +120,10 @@ class HTTPEEWClient(EEWClient):
         Start the client.
         Note: This is a blocking call. If you want to control your own event loop, use `start` instead.
         """
+        self.logger.info("Starting EEW Client...")
         self.__event_loop = asyncio.get_event_loop()
         self.__event_loop.create_task(self.start())
-        self.__event_loop.run_forever()
+        try:
+            self.__event_loop.run_forever()
+        except KeyboardInterrupt:
+            self.__event_loop.stop()
