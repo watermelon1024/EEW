@@ -2,6 +2,8 @@ import io
 from datetime import datetime
 
 import matplotlib.pyplot as plt
+import numpy as np
+from scipy.interpolate import interp1d
 
 from ..utils import MISSING
 from .location import (
@@ -33,6 +35,8 @@ class EarthquakeData:
         "_city_max_intensity",
         "_expected_intensity",
         "_intensity_map",
+        "_p_arrival_distance_interp_func",
+        "_s_arrival_distance_interp_func",
     )
 
     def __init__(
@@ -154,7 +158,25 @@ class EarthquakeData:
         Calculate the expected intensity of the earthquake.
         """
         self._expected_intensity = calculate_expected_intensity_and_travel_time(self, regions)
+        distances, p_travel_times, s_travel_times = zip(
+            *(
+                (i.distance.distance, i.distance.p_travel_time, i.distance.s_travel_time)
+                for i in self._expected_intensity.values()
+            )
+        )
+        self._p_arrival_distance_interp_func = interp1d(
+            np.array(p_travel_times), np.array(distances), kind="linear", fill_value="extrapolate"
+        )
+        self._s_arrival_distance_interp_func = interp1d(
+            np.array(s_travel_times), np.array(distances), kind="linear", fill_value="extrapolate"
+        )
         return self._expected_intensity
+
+    def get_travel_distance(self, time: float):
+        """
+        Get the P and S waves travel distances of the earthquake in kilometers.
+        """
+        return self._p_arrival_distance_interp_func(time), self._s_arrival_distance_interp_func(time)
 
     @property
     def expected_intensity(self) -> dict[int, RegionExpectedIntensity]:

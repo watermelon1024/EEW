@@ -93,7 +93,7 @@ class EEWMessages:
                     f"{city} {intensity.region.name.ljust(4, '　')} {intensity.intensity.display}｜"
                     + (
                         f"<t:{arrival_time}:R>抵達"
-                        if (arrival_time := int(intensity.distance.s_time.timestamp())) > current_time
+                        if (arrival_time := int(intensity.distance.s_arrival_time.timestamp())) > current_time
                         else "⚠️已抵達"
                     )
                 )
@@ -113,7 +113,7 @@ class EEWMessages:
         self._region_intensity = {
             (city, intensity.region.name.ljust(4, "　")): (
                 intensity.intensity.display,
-                int(intensity.distance.s_time.timestamp()),
+                int(intensity.distance.s_arrival_time.timestamp()),
             )
             for city, intensity in self.eew.earthquake.city_max_intensity.items()
             if intensity.intensity.value > 0
