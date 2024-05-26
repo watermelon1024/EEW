@@ -2,7 +2,6 @@ import io
 from datetime import datetime
 
 import matplotlib.pyplot as plt
-import numpy as np
 from scipy.interpolate import interp1d
 
 from ..utils import MISSING
@@ -157,19 +156,15 @@ class EarthquakeData:
         """
         Calculate the expected intensity of the earthquake.
         """
-        self._expected_intensity = calculate_expected_intensity_and_travel_time(self, regions)
-        distances, p_travel_times, s_travel_times = zip(
-            *(
-                (i.distance.distance, i.distance.p_travel_time, i.distance.s_travel_time)
-                for i in self._expected_intensity.values()
-            )
-        )
+        intensities = calculate_expected_intensity_and_travel_time(self, regions)
         self._p_arrival_distance_interp_func = interp1d(
-            np.array(p_travel_times), np.array(distances), kind="linear", fill_value="extrapolate"
+            intensities.p_travel_time, intensities.distances, fill_value="extrapolate"
         )
         self._s_arrival_distance_interp_func = interp1d(
-            np.array(s_travel_times), np.array(distances), kind="linear", fill_value="extrapolate"
+            intensities.s_travel_time, intensities.distances, fill_value="extrapolate"
         )
+
+        self._expected_intensity = dict(intensities)
         return self._expected_intensity
 
     def get_travel_distance(self, time: float):

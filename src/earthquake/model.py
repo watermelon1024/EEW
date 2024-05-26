@@ -8,7 +8,9 @@ import math
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, OrderedDict
 
+import numpy as np
 from obspy.taup import tau
+from scipy.interpolate import interp1d
 
 from ..utils import MISSING
 from .location import REGIONS, Location, RegionLocation
@@ -220,6 +222,38 @@ class RegionExpectedIntensity:
         return f"RegionExpectedIntensity({self._region}, {self._intensity}, {self._distance.s_arrival_time})"
 
 
+class RegionExpectedIntensities(dict):
+    """
+    Represents a dict like object of expected intensity for each region returned by :method:`calculate_expected_intensity_and_travel_time`.
+    """
+
+    __slots__ = ("distances", "p_travel_time", "s_travel_time")
+
+    def __init__(self, intensities: dict[int, RegionExpectedIntensity]):
+        super(RegionExpectedIntensities, self).__init__()
+        self.update(intensities)
+
+        distances, p_travel_time, s_travel_time = map(
+            np.array,
+            zip(
+                *(
+                    (i.distance.distance, i.distance.p_travel_time, i.distance.s_travel_time)
+                    for i in intensities.values()
+                    if i is not None
+                )
+            ),
+        )
+        self.distances: np.ndarray[float] = distances
+        self.p_travel_time: np.ndarray[float] = p_travel_time
+        self.s_travel_time: np.ndarray[float] = s_travel_time
+
+    def __getitem__(self, key: int) -> RegionExpectedIntensity:
+        return super().__getitem__(key)
+
+    def get(self, key: int, default=None) -> RegionExpectedIntensity:
+        return super().get(key, default)
+
+
 def _calculate_distance(p1: Location, p2: Location) -> float:
     """
     Calculate the distance between two points on the Earth's surface.
@@ -312,7 +346,7 @@ def _calculate_intensity(
 
 def calculate_expected_intensity_and_travel_time(
     earthquake: "EarthquakeData", regions: list[RegionLocation] = MISSING
-) -> dict[int, RegionExpectedIntensity]:
+) -> RegionExpectedIntensities:
     """
     Calculate the expected intensity and travel time of the earthquake in different regions.
 
@@ -320,9 +354,12 @@ def calculate_expected_intensity_and_travel_time(
     :type earthquake: EarthquakeData
     :param regions: List of RegionLocation to calculate. If missing, it will calculate all existing regions.
     :type regions: list[RegionLocation]
+    :return: RegionExpectedIntensitys object containing expected intensity and travel time for each region.
+    :rtype: RegionExpectedIntensitys
     """
 
-    expected_intensity = {}
+    _expected_intensity = {}
+    faild_regions: list[tuple[RegionLocation, float, float]] = []
 
     for region in regions or REGIONS.values():
         distance_in_radians = _calculate_distance(earthquake, region)
@@ -334,33 +371,53 @@ def calculate_expected_intensity_and_travel_time(
             distance_in_degree=distance_in_degrees,
             phase_list=["p", "s"],
         )
-        if len(arrivals) == 2:
-            p_arrival, s_arrival = arrivals
-        else:
-            arrivals = MODEL.get_travel_times(
-                source_depth_in_km=earthquake.depth,
-                distance_in_degree=distance_in_degrees,
-                phase_list=["P", "S"],
-            )
-            p_arrival = None
-            s_arrival = None
-            for arrival in arrivals:
-                arrival: tau.Arrival
-                if arrival.name == "P" and p_arrival is None:
-                    p_arrival = arrival
-                elif arrival.name == "S" and s_arrival is None:
-                    s_arrival = arrival
+        if len(arrivals) != 2:
+            faild_regions.append((region, intensity, distance_in_km))
+            _expected_intensity[region.code] = None
+            continue
 
-        expected_intensity[region.code] = RegionExpectedIntensity(
+        p_arrival_time = arrivals[0].time
+        s_arrival_time = arrivals[1].time
+
+        _expected_intensity[region.code] = RegionExpectedIntensity(
             region,
             Intensity(intensity),
             Distance(
                 distance_in_km,
-                earthquake.time + timedelta(seconds=p_arrival.time),
-                earthquake.time + timedelta(seconds=s_arrival.time),
-                p_arrival.time,
-                s_arrival.time,
+                earthquake.time + timedelta(seconds=p_arrival_time),
+                earthquake.time + timedelta(seconds=s_arrival_time),
+                p_arrival_time,
+                s_arrival_time,
             ),
         )
 
-    return expected_intensity
+    intensities = RegionExpectedIntensities(_expected_intensity)
+
+    p_travel_time_interp_func = interp1d(
+        intensities.distances,
+        intensities.p_travel_time,
+        fill_value="extrapolate",
+    )
+    s_travel_time_interp_func = interp1d(
+        intensities.distances,
+        intensities.s_travel_time,
+        fill_value="extrapolate",
+    )
+
+    for region, i, d in faild_regions:
+        p_travel_time = float(p_travel_time_interp_func(d))
+        s_travel_time = float(s_travel_time_interp_func(d))
+        intensities[region.code] = RegionExpectedIntensity(
+            region,
+            Intensity(i),
+            Distance(
+                d,
+                earthquake.time + timedelta(seconds=p_travel_time),
+                earthquake.time + timedelta(seconds=s_travel_time),
+                p_travel_time,
+                s_travel_time,
+            ),
+        )
+        print(region, intensities[region.code].distance.s_travel_time)
+
+    return intensities
