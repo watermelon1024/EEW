@@ -323,7 +323,7 @@ def _calculate_intensity(
     :return: Estimated intensity.
     :rtype: float
     """
-    pga = 1.657 * math.exp(1.533 * magnitude) * hypocenter_distance**-1.607 * site_effect
+    pga = 1.657 * math.exp(1.533 * magnitude) * hypocenter_distance**-1.607 * (site_effect or 1.751)
     i = 2 * math.log10(pga) + 0.7
 
     if i > 3:
@@ -365,7 +365,7 @@ def calculate_expected_intensity_and_travel_time(
         distance_in_radians = _calculate_distance(earthquake, region)
         distance_in_degrees = math.degrees(distance_in_radians)
         distance_in_km = EARTH_RADIUS * distance_in_radians
-        intensity = _calculate_intensity(distance_in_km, earthquake.mag, earthquake.depth)
+        intensity = _calculate_intensity(distance_in_km, earthquake.mag, earthquake.depth, region.side_effect)
         arrivals = MODEL.get_travel_times(
             source_depth_in_km=earthquake.depth,
             distance_in_degree=distance_in_degrees,
@@ -418,6 +418,5 @@ def calculate_expected_intensity_and_travel_time(
                 s_travel_time,
             ),
         )
-        print(region, intensities[region.code].distance.s_travel_time)
 
     return intensities
