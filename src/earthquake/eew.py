@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime
 
 from scipy.interpolate import interp1d
@@ -23,6 +24,7 @@ class EarthquakeData:
         "_depth",
         "_time",
         "_max_intensity",
+        "_calc_task",
         "_city_max_intensity",
         "_expected_intensity",
         "_p_arrival_distance_interp_func",
@@ -57,6 +59,7 @@ class EarthquakeData:
         self._depth = depth
         self._time = time
         self._max_intensity = max_intensity
+        self._calc_task: asyncio.Future = None
         self._city_max_intensity: dict[str, RegionExpectedIntensity] = None
         self._expected_intensity: dict[int, RegionExpectedIntensity] = None
         self._map: Map = Map(self)
@@ -171,6 +174,18 @@ class EarthquakeData:
             intensities.s_travel_time, intensities.distances, fill_value="extrapolate"
         )
         return self._expected_intensity
+
+    def calc_all_data(self):
+        self.calc_expected_intensity()
+        self.map.draw()
+
+    def calc_all_data_in_executor(self, loop: asyncio.AbstractEventLoop):
+        if self._calc_task is None:
+            self._calc_task = loop.run_in_executor(None, self.calc_all_data)
+        return self._calc_task
+
+    async def wait_until_intensity_calculated(self):
+        await self._calc_task
 
     def get_travel_distance(self, time: float) -> tuple[float, float]:
         """

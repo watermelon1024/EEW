@@ -10,6 +10,9 @@ import warnings
 
 from .location import COUNTRY_DATA, TOWN_DATA, TOWN_RANGE
 
+plt.ioff()
+plt.switch_backend("AGG")
+
 
 class Map:
     """

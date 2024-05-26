@@ -39,13 +39,16 @@ class HTTPEEWClient(EEWClient):
             "--------------------------------"
         )
 
+        eew.earthquake.calc_all_data_in_executor(self.__event_loop)
+
         # call custom notification client
-        await asyncio.gather(*(client.send_eew(eew) for client in self._notification_client))
+        await asyncio.gather(*(c.send_eew(eew) for c in self._notification_client), return_exceptions=True)
 
         return eew
 
     async def update_alert(self, data: dict):
         eew = EEW.from_dict(data)
+        old_eew = self._alerts.get(eew.id)
         self._alerts[eew.id] = eew
 
         self.logger.info(
@@ -59,14 +62,18 @@ class HTTPEEWClient(EEWClient):
             "--------------------------------"
         )
 
+        if old_eew is not None:
+            old_eew.earthquake._calc_task.cancel()
+        eew.earthquake.calc_all_data_in_executor(self.__event_loop)
+
         # call custom notification client
-        await asyncio.gather(*(client.update_eew(eew) for client in self._notification_client))
+        await asyncio.gather(*(c.update_eew(eew) for c in self._notification_client), return_exceptions=True)
 
         return eew
 
     async def lift_alert(self, eew: EEW):
         # call custom notification client
-        await asyncio.gather(*(client.lift_eew(eew) for client in self._notification_client))
+        await asyncio.gather(*(c.lift_eew(eew) for c in self._notification_client), return_exceptions=True)
 
     async def _get_request(self, retry: int = 0):
         try:
@@ -127,3 +134,5 @@ class HTTPEEWClient(EEWClient):
             self.__event_loop.run_forever()
         except KeyboardInterrupt:
             self.__event_loop.stop()
+        finally:
+            self.logger.info("EEW Client has been stopped.")
