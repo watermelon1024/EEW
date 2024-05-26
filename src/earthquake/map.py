@@ -22,8 +22,8 @@ class Map:
         """
         Initialize the map.
 
-        :param lon: longitude of the epicentre
-        :param lat: latitude of the epicentre
+        :param lon: longitude of the epicenter
+        :param lat: latitude of the epicenter
         """
         self._eq = earthquake
         self._image = None
@@ -63,7 +63,7 @@ class Map:
         if self.fig is None:
             self.init_figure()
         # map boundary
-        zoom = 1  # TODO: change accdoring to magnitude
+        zoom = 1  # TODO: change zoom according to magnitude
         mid_lon, mid_lat = (121 + self._eq.lon) / 2, (24 + self._eq.lat) / 2
         lon_boundary, lat_boundary = 1.6 * zoom, 2.4 * zoom
         min_lon, max_lon = mid_lon - lon_boundary, mid_lon + lon_boundary
@@ -75,7 +75,7 @@ class Map:
             if region.intensity.value > 0:
                 TOWN_RANGE[code].plot(ax=self.ax, color=region.intensity.color)
         COUNTRY_DATA.plot(ax=self.ax, edgecolor="black", facecolor="none", linewidth=0.64 / zoom)
-        # draw epicentre
+        # draw epicenter
         self.ax.scatter(
             self._eq.lon,
             self._eq.lat,
@@ -103,7 +103,6 @@ class Map:
             waves = "ps"
 
         p_dis, s_dis = self._eq.get_travel_distance(time)
-        print(p_dis, s_dis)
 
         if "p" in waves:
             if self.p_wave is not None:

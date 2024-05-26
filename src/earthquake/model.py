@@ -374,12 +374,12 @@ def calculate_expected_intensity_and_travel_time(
     :type earthquake: EarthquakeData
     :param regions: List of RegionLocation to calculate. If missing, it will calculate all existing regions.
     :type regions: list[RegionLocation]
-    :return: RegionExpectedIntensitys object containing expected intensity and travel time for each region.
-    :rtype: RegionExpectedIntensitys
+    :return: RegionExpectedIntensities object containing expected intensity and travel time for each region.
+    :rtype: RegionExpectedIntensities
     """
 
     _expected_intensity = {}
-    faild_regions: list[tuple[RegionLocation, float, float]] = []
+    failed_regions: list[tuple[RegionLocation, float, float]] = []
 
     for region in regions or REGIONS.values():
         distance_in_radians = _calculate_distance(earthquake, region)
@@ -390,7 +390,7 @@ def calculate_expected_intensity_and_travel_time(
             phase_list=["p", "s"],
         )
         if len(arrivals) != 2:
-            faild_regions.append((region, distance_in_radians, distance_in_degrees))
+            failed_regions.append((region, distance_in_radians, distance_in_degrees))
             _expected_intensity[region.code] = None
             continue
 
@@ -427,7 +427,7 @@ def calculate_expected_intensity_and_travel_time(
         fill_value="extrapolate",
     )
 
-    for region, rad, deg in faild_regions:
+    for region, rad, deg in failed_regions:
         p_travel_time = float(p_travel_time_interp_func(deg))
         s_travel_time = float(s_travel_time_interp_func(deg))
         distance_in_km = math.sqrt((rad * EARTH_RADIUS) ** 2 + earthquake.depth**2)

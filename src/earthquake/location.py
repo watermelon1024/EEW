@@ -31,7 +31,7 @@ class Location:
 
     @property
     def lat(self):
-        """The latitude of the loaction."""
+        """The latitude of the location."""
         return self._latitude
 
     def __str__(self):
@@ -139,7 +139,7 @@ class RegionLocation(Location):
 
     @property
     def lat(self):
-        """The latitude of the loaction."""
+        """The latitude of the location."""
         return self._latitude
 
     @property
@@ -176,8 +176,8 @@ class RegionLocation(Location):
 
 def _parse_region_dict(data: dict[str, dict[str, dict[str, int | float | str]]]) -> dict[int, RegionLocation]:
     all_regions = {}
-    for city, regoins in data.items():
-        for name, d in regoins.items():
+    for city, regions in data.items():
+        for name, d in regions.items():
             all_regions[d["code"]] = RegionLocation(
                 d["lon"], d["lat"], d["code"], name, city, d.get("area"), d.get("site")
             )

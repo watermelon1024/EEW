@@ -218,7 +218,7 @@ class EEW:
     Represents an earthquake early warning event.
     """
 
-    __solts__ = ("_id", "_serial", "_final", "_earthquake", "_provider", "_time")
+    __slots__ = ("_id", "_serial", "_final", "_earthquake", "_provider", "_time")
 
     def __init__(
         self,
