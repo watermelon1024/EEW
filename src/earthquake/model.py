@@ -99,11 +99,12 @@ class Distance:
     Represents a distance and travel time.
     """
 
-    __slots__ = ("_distance", "_p_arrival_time", "_s_arrival_time", "_p_travel_time", "_s_travel_time")
+    __slots__ = ("_km", "_deg", "_p_arrival_time", "_s_arrival_time", "_p_travel_time", "_s_travel_time")
 
     def __init__(
         self,
-        value: float,
+        in_km: float,
+        in_degrees: float,
         p_arrival_time: datetime,
         s_arrival_time: datetime,
         p_travel_time: float,
@@ -112,8 +113,10 @@ class Distance:
         """
         Initialize the distance instance.
 
-        :param value: The distance.
-        :type value: float
+        :param in_km: The distance in kilometers.
+        :type in_km: float
+        :param in_degrees: The distance in degrees.
+        :type in_degrees: float
         :param p_arrival_time: P wave arrival time.
         :type p_arrival_time: datetime
         :param s_arrival_time: S wave arrival time.
@@ -123,18 +126,26 @@ class Distance:
         :param s_travel_time: S travel time.
         :type s_travel_time: float
         """
-        self._distance = value
+        self._km = in_km
+        self._deg = in_degrees
         self._p_arrival_time = p_arrival_time
         self._s_arrival_time = s_arrival_time
         self._p_travel_time = p_travel_time
         self._s_travel_time = s_travel_time
 
     @property
-    def distance(self) -> float:
+    def km(self) -> float:
         """
-        The distance from the hypocenter.
+        The distance from the hypocenter in km.
         """
-        return self._distance
+        return self._km
+
+    @property
+    def degrees(self) -> float:
+        """
+        The distance from the epicenter in degrees.
+        """
+        return self._deg
 
     @property
     def p_arrival_time(self) -> datetime:
@@ -230,6 +241,12 @@ class RegionExpectedIntensities(dict):
     __slots__ = ("distances", "p_travel_time", "s_travel_time")
 
     def __init__(self, intensities: dict[int, RegionExpectedIntensity]):
+        """
+        Initialize the region expected intensities instance.
+
+        :param intensities: The intensities.
+        :type intensities: dict[int, RegionExpectedIntensity]
+        """
         super(RegionExpectedIntensities, self).__init__()
         self.update(intensities)
 
@@ -237,15 +254,18 @@ class RegionExpectedIntensities(dict):
             np.array,
             zip(
                 *(
-                    (i.distance.distance, i.distance.p_travel_time, i.distance.s_travel_time)
+                    (i.distance.degrees, i.distance.p_travel_time, i.distance.s_travel_time)
                     for i in intensities.values()
                     if i is not None
                 )
             ),
         )
         self.distances: np.ndarray[float] = distances
+        "The distances in degrees."
         self.p_travel_time: np.ndarray[float] = p_travel_time
+        "The P wave travel time in seconds."
         self.s_travel_time: np.ndarray[float] = s_travel_time
+        "The S wave travel time in seconds."
 
     def __getitem__(self, key: int) -> RegionExpectedIntensity:
         return super().__getitem__(key)
@@ -364,30 +384,33 @@ def calculate_expected_intensity_and_travel_time(
     for region in regions or REGIONS.values():
         distance_in_radians = _calculate_distance(earthquake, region)
         distance_in_degrees = math.degrees(distance_in_radians)
-        distance_in_km = EARTH_RADIUS * distance_in_radians
-        intensity = _calculate_intensity(distance_in_km, earthquake.mag, earthquake.depth, region.side_effect)
         arrivals = MODEL.get_travel_times(
             source_depth_in_km=earthquake.depth,
             distance_in_degree=distance_in_degrees,
             phase_list=["p", "s"],
         )
         if len(arrivals) != 2:
-            faild_regions.append((region, intensity, distance_in_km))
+            faild_regions.append((region, distance_in_radians, distance_in_degrees))
             _expected_intensity[region.code] = None
             continue
 
-        p_arrival_time = arrivals[0].time
-        s_arrival_time = arrivals[1].time
+        p_arrival, s_arrival = arrivals
+        p_arrival: tau.Arrival
+        s_arrival: tau.Arrival
+
+        distance_in_km = p_arrival.purist_dist * EARTH_RADIUS
+        intensity = _calculate_intensity(distance_in_km, earthquake.mag, earthquake.depth, region.side_effect)
 
         _expected_intensity[region.code] = RegionExpectedIntensity(
             region,
             Intensity(intensity),
             Distance(
                 distance_in_km,
-                earthquake.time + timedelta(seconds=p_arrival_time),
-                earthquake.time + timedelta(seconds=s_arrival_time),
-                p_arrival_time,
-                s_arrival_time,
+                distance_in_degrees,
+                earthquake.time + timedelta(seconds=p_arrival.time),
+                earthquake.time + timedelta(seconds=s_arrival.time),
+                p_arrival.time,
+                s_arrival.time,
             ),
         )
 
@@ -404,14 +427,18 @@ def calculate_expected_intensity_and_travel_time(
         fill_value="extrapolate",
     )
 
-    for region, i, d in faild_regions:
-        p_travel_time = float(p_travel_time_interp_func(d))
-        s_travel_time = float(s_travel_time_interp_func(d))
+    for region, rad, deg in faild_regions:
+        p_travel_time = float(p_travel_time_interp_func(deg))
+        s_travel_time = float(s_travel_time_interp_func(deg))
+        distance_in_km = math.sqrt((rad * EARTH_RADIUS) ** 2 + earthquake.depth**2)
+        intensity = _calculate_intensity(distance_in_km, earthquake.mag, earthquake.depth, region.side_effect)
+
         intensities[region.code] = RegionExpectedIntensity(
             region,
-            Intensity(i),
+            Intensity(intensity),
             Distance(
-                d,
+                distance_in_km,
+                deg,
                 earthquake.time + timedelta(seconds=p_travel_time),
                 earthquake.time + timedelta(seconds=s_travel_time),
                 p_travel_time,
