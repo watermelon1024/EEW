@@ -398,14 +398,17 @@ def calculate_expected_intensity_and_travel_time(
         p_arrival: tau.Arrival
         s_arrival: tau.Arrival
 
-        distance_in_km = p_arrival.purist_dist * EARTH_RADIUS
-        intensity = _calculate_intensity(distance_in_km, earthquake.mag, earthquake.depth, region.side_effect)
+        real_distance_in_km = math.sqrt((distance_in_radians * EARTH_RADIUS) ** 2 + earthquake.depth**2)
+        # real_distance_in_km = distance_in_radians * EARTH_RADIUS
+        intensity = _calculate_intensity(
+            real_distance_in_km, earthquake.mag, earthquake.depth, region.side_effect
+        )
 
         _expected_intensity[region.code] = RegionExpectedIntensity(
             region,
             Intensity(intensity),
             Distance(
-                distance_in_km,
+                real_distance_in_km,
                 distance_in_degrees,
                 earthquake.time + timedelta(seconds=p_arrival.time),
                 earthquake.time + timedelta(seconds=s_arrival.time),
@@ -430,14 +433,16 @@ def calculate_expected_intensity_and_travel_time(
     for region, rad, deg in failed_regions:
         p_travel_time = float(p_travel_time_interp_func(deg))
         s_travel_time = float(s_travel_time_interp_func(deg))
-        distance_in_km = math.sqrt((rad * EARTH_RADIUS) ** 2 + earthquake.depth**2)
-        intensity = _calculate_intensity(distance_in_km, earthquake.mag, earthquake.depth, region.side_effect)
+        real_distance_in_km = math.sqrt((rad * EARTH_RADIUS) ** 2 + earthquake.depth**2)
+        intensity = _calculate_intensity(
+            real_distance_in_km, earthquake.mag, earthquake.depth, region.side_effect
+        )
 
         intensities[region.code] = RegionExpectedIntensity(
             region,
             Intensity(intensity),
             Distance(
-                distance_in_km,
+                real_distance_in_km,
                 deg,
                 earthquake.time + timedelta(seconds=p_travel_time),
                 earthquake.time + timedelta(seconds=s_travel_time),
