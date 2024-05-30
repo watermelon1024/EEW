@@ -1,12 +1,16 @@
 import asyncio
 from datetime import datetime
 
-from scipy.interpolate import interp1d
-
 from ..utils import MISSING
 from .location import REGIONS_GROUP_BY_CITY, EarthquakeLocation, RegionLocation
 from .map import Map
-from .model import Intensity, RegionExpectedIntensity, calculate_expected_intensity_and_travel_time
+from .model import (
+    Intensity,
+    RegionExpectedIntensity,
+    WaveModel,
+    calculate_expected_intensity_and_travel_time,
+    get_wave_model,
+)
 
 PROVIDER_DISPLAY = {
     "cwa": "中央氣象署",
@@ -24,6 +28,7 @@ class EarthquakeData:
         "_depth",
         "_time",
         "_max_intensity",
+        "_model",
         "_calc_task",
         "_city_max_intensity",
         "_expected_intensity",
@@ -59,6 +64,7 @@ class EarthquakeData:
         self._depth = depth
         self._time = time
         self._max_intensity = max_intensity
+        self._model = get_wave_model(depth)
         self._calc_task: asyncio.Future = None
         self._city_max_intensity: dict[str, RegionExpectedIntensity] = None
         self._expected_intensity: dict[int, RegionExpectedIntensity] = None
@@ -114,6 +120,13 @@ class EarthquakeData:
         return self._max_intensity
 
     @property
+    def wave_model(self) -> WaveModel:
+        """
+        The wave model of the earthquake.
+        """
+        return self._model
+
+    @property
     def expected_intensity(self) -> dict[int, RegionExpectedIntensity]:
         """
         The expected intensity of the earthquake (if have been calculated).
@@ -167,12 +180,6 @@ class EarthquakeData:
             )
             for city, regions in REGIONS_GROUP_BY_CITY.items()
         }
-        self._p_arrival_distance_interp_func = interp1d(
-            intensities.p_travel_time, intensities.distances, fill_value="extrapolate"
-        )
-        self._s_arrival_distance_interp_func = interp1d(
-            intensities.s_travel_time, intensities.distances, fill_value="extrapolate"
-        )
         return self._expected_intensity
 
     def calc_all_data(self):
@@ -186,15 +193,6 @@ class EarthquakeData:
 
     async def wait_until_intensity_calculated(self):
         await self._calc_task
-
-    def get_travel_distance(self, time: float) -> tuple[float, float]:
-        """
-        Get the P and S waves travel distances of the earthquake in kilometers.
-        """
-        return (
-            float(self._p_arrival_distance_interp_func(time)),
-            float(self._s_arrival_distance_interp_func(time)),
-        )
 
 
 class Provider:

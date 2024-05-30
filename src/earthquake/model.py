@@ -18,8 +18,6 @@ from .location import REGIONS, Location, RegionLocation
 if TYPE_CHECKING:
     from .eew import EarthquakeData
 
-MODEL_CACHE = OrderedDict()
-MODEL = tau.TauPyModel(cache=MODEL_CACHE)
 EARTH_RADIUS = 6371.008
 INTENSITY_DISPLAY: dict[int, str] = {
     0: "0級",
@@ -45,6 +43,103 @@ INTENSITY_COLOR: dict[int, str] = {
     8: "#E93769",
     9: "#491475",
 }
+
+SEISMIC_MODEL = tau.TauPyModel(cache=OrderedDict())
+wave_model_cache: dict[int, "WaveModel"] = {}
+
+
+class WaveModel:
+    """
+    Represents a P and S waves model.
+    """
+
+    def __init__(self, distance: np.ndarray, p_time: np.ndarray, s_time: np.ndarray) -> None:
+        """
+        Initialize the travel time model.
+        Note: You should not create this class directly, instead, use the :method:`get_wave_model` method.
+
+        :param distance: The distance array in degrees.
+        :type distance: np.ndarray
+        :param p_time: The P wave travel time array in seconds.
+        :type p_time: np.ndarray
+        :param s_time: The S wave travel time array in seconds.
+        :type s_time: np.ndarray
+        """
+        distance_in_radians = np.radians(distance)
+        self._p_arrival_distance_interp_func = interp1d(
+            p_time, distance, bounds_error=False, fill_value="extrapolate"
+        )
+        self._s_arrival_distance_interp_func = interp1d(
+            s_time, distance, bounds_error=False, fill_value="extrapolate"
+        )
+        self._p_travel_time_interp_func = interp1d(
+            distance_in_radians, p_time, bounds_error=False, fill_value="extrapolate"
+        )
+        self._s_travel_time_interp_func = interp1d(
+            distance_in_radians, s_time, bounds_error=False, fill_value="extrapolate"
+        )
+
+    def get_travel_time(self, distance: float) -> tuple[float, float]:
+        """
+        Get the P and S waves travel time of the earthquake in seconds.
+
+        :param distance: The distance in radians.
+        :type distance: float
+        :return: P and S waves travel time in seconds.
+        :rtype: tuple[float, float]
+        """
+        return (
+            float(self._p_travel_time_interp_func(distance)),
+            float(self._s_travel_time_interp_func(distance)),
+        )
+
+    def get_travel_distance(self, time: float) -> tuple[float, float]:
+        """
+        Get the P and S waves travel distances of the earthquake in kilometers.
+
+        :param time: The travel time in seconds.
+        :type time: float
+        :return: P and S waves travel distances in degrees.
+        :rtype: tuple[float, float]
+        """
+        return (
+            float(self._p_arrival_distance_interp_func(time)),
+            float(self._s_arrival_distance_interp_func(time)),
+        )
+
+
+def get_wave_model(depth: float) -> WaveModel:
+    """
+    Get the wave model for the given depth.
+
+    :param depth: The depth in kilometers.
+    :type depth: float
+    :return: The wave model.
+    :rtype: WaveModel
+    """
+    cache = wave_model_cache.get(depth)
+    if cache is not None:
+        return cache
+
+    deg = []
+    p_time = []
+    s_time = []
+    for i in np.arange(0, 1, 0.01):
+        arrivals = SEISMIC_MODEL.get_travel_times(
+            source_depth_in_km=depth, distance_in_degree=i, phase_list=["p", "s"]
+        )
+        if len(arrivals) == 2:
+            deg.append(i)
+            p_time.append(arrivals[0].time)
+            s_time.append(arrivals[1].time)
+    model = WaveModel(np.array(deg), np.array(p_time), np.array(s_time))
+    wave_model_cache[depth] = model
+    return model
+
+
+# pre fill wave model cache
+for depth in range(10, 101, 10):
+    get_wave_model(depth)
 
 
 class Intensity:
@@ -238,8 +333,6 @@ class RegionExpectedIntensities(dict):
     Represents a dict like object of expected intensity for each region returned by :method:`calculate_expected_intensity_and_travel_time`.
     """
 
-    __slots__ = ("distances", "p_travel_time", "s_travel_time")
-
     def __init__(self, intensities: dict[int, RegionExpectedIntensity]):
         """
         Initialize the region expected intensities instance.
@@ -249,23 +342,6 @@ class RegionExpectedIntensities(dict):
         """
         super(RegionExpectedIntensities, self).__init__()
         self.update(intensities)
-
-        distances, p_travel_time, s_travel_time = map(
-            np.array,
-            zip(
-                *(
-                    (i.distance.degrees, i.distance.p_travel_time, i.distance.s_travel_time)
-                    for i in intensities.values()
-                    if i is not None
-                )
-            ),
-        )
-        self.distances: np.ndarray[float] = distances
-        "The distances in degrees."
-        self.p_travel_time: np.ndarray[float] = p_travel_time
-        "The P wave travel time in seconds."
-        self.s_travel_time: np.ndarray[float] = s_travel_time
-        "The S wave travel time in seconds."
 
     def __getitem__(self, key: int) -> RegionExpectedIntensity:
         return super().__getitem__(key)
@@ -379,30 +455,16 @@ def calculate_expected_intensity_and_travel_time(
     """
 
     _expected_intensity = {}
-    failed_regions: list[tuple[RegionLocation, float, float]] = []
+    squared_depth = earthquake.depth**2
 
     for region in regions or REGIONS.values():
         distance_in_radians = _calculate_distance(earthquake, region)
         distance_in_degrees = math.degrees(distance_in_radians)
-        arrivals = MODEL.get_travel_times(
-            source_depth_in_km=earthquake.depth,
-            distance_in_degree=distance_in_degrees,
-            phase_list=["p", "s"],
-        )
-        if len(arrivals) != 2:
-            failed_regions.append((region, distance_in_radians, distance_in_degrees))
-            _expected_intensity[region.code] = None
-            continue
-
-        p_arrival, s_arrival = arrivals
-        p_arrival: tau.Arrival
-        s_arrival: tau.Arrival
-
-        real_distance_in_km = math.sqrt((distance_in_radians * EARTH_RADIUS) ** 2 + earthquake.depth**2)
-        # real_distance_in_km = distance_in_radians * EARTH_RADIUS
+        real_distance_in_km = math.sqrt((distance_in_radians * EARTH_RADIUS) ** 2 + squared_depth)
         intensity = _calculate_intensity(
             real_distance_in_km, earthquake.mag, earthquake.depth, region.side_effect
         )
+        p_travel, s_travel = earthquake.wave_model.get_travel_time(distance_in_radians)
 
         _expected_intensity[region.code] = RegionExpectedIntensity(
             region,
@@ -410,45 +472,13 @@ def calculate_expected_intensity_and_travel_time(
             Distance(
                 real_distance_in_km,
                 distance_in_degrees,
-                earthquake.time + timedelta(seconds=p_arrival.time),
-                earthquake.time + timedelta(seconds=s_arrival.time),
-                p_arrival.time,
-                s_arrival.time,
+                earthquake.time + timedelta(seconds=p_travel),
+                earthquake.time + timedelta(seconds=s_travel),
+                p_travel,
+                s_travel,
             ),
         )
 
     intensities = RegionExpectedIntensities(_expected_intensity)
-
-    p_travel_time_interp_func = interp1d(
-        intensities.distances,
-        intensities.p_travel_time,
-        fill_value="extrapolate",
-    )
-    s_travel_time_interp_func = interp1d(
-        intensities.distances,
-        intensities.s_travel_time,
-        fill_value="extrapolate",
-    )
-
-    for region, rad, deg in failed_regions:
-        p_travel_time = float(p_travel_time_interp_func(deg))
-        s_travel_time = float(s_travel_time_interp_func(deg))
-        real_distance_in_km = math.sqrt((rad * EARTH_RADIUS) ** 2 + earthquake.depth**2)
-        intensity = _calculate_intensity(
-            real_distance_in_km, earthquake.mag, earthquake.depth, region.side_effect
-        )
-
-        intensities[region.code] = RegionExpectedIntensity(
-            region,
-            Intensity(intensity),
-            Distance(
-                real_distance_in_km,
-                deg,
-                earthquake.time + timedelta(seconds=p_travel_time),
-                earthquake.time + timedelta(seconds=s_travel_time),
-                p_travel_time,
-                s_travel_time,
-            ),
-        )
 
     return intensities

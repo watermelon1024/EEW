@@ -105,7 +105,7 @@ class Map:
         if waves == "all":
             waves = "ps"
 
-        p_dis, s_dis = self._eq.get_travel_distance(time)
+        p_dis, s_dis = self._eq._model.get_travel_distance(time)
 
         if "p" in waves:
             if self.p_wave is not None:
