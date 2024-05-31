@@ -53,7 +53,7 @@ class EEWMessages:
         self.messages = messages
 
         self._info_embed: Optional[discord.Embed] = None
-        self._intensity_embed: Optional[discord.Embed] = None
+        self._intensity_embed = discord.Embed(title="震度等級預估", description="計算中...")
         self._region_intensity: Optional[dict[tuple[str, str], tuple[str, int]]] = None
         self.map_url: Optional[str] = None
         self._bot_latency: float = 0
@@ -90,7 +90,6 @@ class EEWMessages:
 
     def intensity_embed(self) -> discord.Embed:
         if self.eew.earthquake.city_max_intensity is None:
-            self._intensity_embed = discord.Embed(title="震度等級預估", description="計算中...")
             return self._intensity_embed
         if self._region_intensity is None:
             self.get_region_intensity()
@@ -192,7 +191,7 @@ class EEWMessages:
             m = await self.messages[0].edit(embeds=[self._info_embed, intensity_embed], **file)  # type: ignore
             if len(m.embeds) > 1 and (image := m.embeds[1].image):
                 self.map_url = image.url
-            elif self._region_intensity is not None:
+            elif self.eew.earthquake.map.image is not None:
                 # if intensity calc has done but map not drawn
                 self.bot.logger.warning("Failed to get image url.")
 
