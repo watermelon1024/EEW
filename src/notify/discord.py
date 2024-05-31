@@ -75,7 +75,7 @@ class EEWMessages:
             color=0xFF0000,
         ).set_author(
             name="Taiwan Earthquake Early Warning",
-            icon_url="https://cdn.discordapp.com/emojis/1018381096532070572.png",
+            icon_url="https://raw.githubusercontent.com/watermelon1024/EEW/main/icon.png",
         )
 
         return self._info_embed
