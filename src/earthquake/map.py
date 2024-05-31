@@ -13,6 +13,21 @@ from .location import COUNTRY_DATA, TOWN_DATA, TOWN_RANGE
 plt.ioff()
 plt.switch_backend("AGG")
 
+P_WAVE_COLOR = "orange"
+S_WAVE_COLOR = "red"
+INTENSITY_COLOR: dict[int, str] = {
+    0: None,
+    1: "#387FFF",
+    2: "#244FD0",
+    3: "#35BF56",
+    4: "#F8F755",
+    5: "#FFC759",
+    6: "#FF9935",
+    7: "#DF443B",
+    8: "#7B170F",
+    9: "#7237C1",
+}
+
 
 class Map:
     """
@@ -76,7 +91,7 @@ class Map:
         TOWN_DATA.plot(ax=self.ax, facecolor="lightgrey", edgecolor="black", linewidth=0.22 / zoom)
         for code, region in self._eq._expected_intensity.items():
             if region.intensity.value > 0:
-                TOWN_RANGE[code].plot(ax=self.ax, color=region.intensity.color)
+                TOWN_RANGE[code].plot(ax=self.ax, color=INTENSITY_COLOR[region.intensity.value])
         COUNTRY_DATA.plot(ax=self.ax, edgecolor="black", facecolor="none", linewidth=0.64 / zoom)
         # draw epicenter
         self.ax.scatter(
@@ -113,7 +128,7 @@ class Map:
             self.p_wave = plt.Circle(
                 (self._eq.lon, self._eq.lat),
                 p_dis,
-                color="orange",
+                color=P_WAVE_COLOR,
                 fill=False,
                 linewidth=1.5,
             )
@@ -125,13 +140,15 @@ class Map:
             self.s_wave = plt.Circle(
                 (self._eq.lon, self._eq.lat),
                 s_dis,
-                color="red",
+                color=S_WAVE_COLOR,
                 fill=False,
                 linewidth=1.5,
             )
             self.ax.add_patch(self.s_wave)
 
     def save(self):
+        if self.fig is None:
+            raise RuntimeError("Map have not been initialized yet.")
         if not self._drawn:
             warnings.warn("Map have not been drawn yet, it will be empty.")
 

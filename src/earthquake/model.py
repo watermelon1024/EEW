@@ -31,18 +31,6 @@ INTENSITY_DISPLAY: dict[int, str] = {
     8: "6強",
     9: "7級",
 }
-INTENSITY_COLOR: dict[int, str] = {
-    0: None,
-    1: "#244FA6",
-    2: "#387AFF",
-    3: "#359D56",
-    4: "#E9CD40",
-    5: "#E9AE5A",
-    6: "#E96914",
-    7: "#FF6161",
-    8: "#E93769",
-    9: "#491475",
-}
 
 SEISMIC_MODEL = tau.TauPyModel(cache=OrderedDict())
 wave_model_cache: dict[int, "WaveModel"] = {}
@@ -103,8 +91,8 @@ class WaveModel:
         :rtype: tuple[float, float]
         """
         return (
-            float(self._p_arrival_distance_interp_func(time)),
-            float(self._s_arrival_distance_interp_func(time)),
+            max(float(self._p_arrival_distance_interp_func(time)), 0),
+            max(float(self._s_arrival_distance_interp_func(time)), 0),
         )
 
 
@@ -147,7 +135,7 @@ class Intensity:
     Represents an intensity.
     """
 
-    __slots__ = ("_float_value", "_value", "_display", "_color")
+    __slots__ = ("_float_value", "_value", "_display")
 
     def __init__(self, value: float) -> None:
         """
@@ -159,7 +147,6 @@ class Intensity:
         self._float_value = value
         self._value = round_intensity(value)
         self._display = INTENSITY_DISPLAY[self._value]
-        self._color = INTENSITY_COLOR[self._value]
 
     @property
     def value(self) -> int:
@@ -174,13 +161,6 @@ class Intensity:
         Get the intensity display string.
         """
         return self._display
-
-    @property
-    def color(self) -> str:
-        """
-        Get the intensity color.
-        """
-        return self._color
 
     def __str__(self) -> str:
         return self._display
