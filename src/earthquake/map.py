@@ -8,7 +8,7 @@ if TYPE_CHECKING:
 
 import warnings
 
-from .location import COUNTRY_DATA, TOWN_DATA, TOWN_RANGE
+from .location import COUNTRY_DATA, TAIWAN_CENTER, TOWN_DATA, TOWN_RANGE
 
 plt.ioff()
 plt.switch_backend("AGG")
@@ -82,7 +82,7 @@ class Map:
             self.init_figure()
         # map boundary
         zoom = 1  # TODO: change zoom according to magnitude
-        mid_lon, mid_lat = (121 + self._eq.lon) / 2, (24 + self._eq.lat) / 2
+        mid_lon, mid_lat = (TAIWAN_CENTER.lon + self._eq.lon) / 2, (TAIWAN_CENTER.lat + self._eq.lat) / 2
         lon_boundary, lat_boundary = 1.6 * zoom, 2.4 * zoom
         min_lon, max_lon = mid_lon - lon_boundary, mid_lon + lon_boundary
         min_lat, max_lat = mid_lat - lat_boundary, mid_lat + lat_boundary
