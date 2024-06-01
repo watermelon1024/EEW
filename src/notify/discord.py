@@ -178,11 +178,11 @@ class EEWMessages:
         current_time = datetime.now().timestamp()
         if not self.map_url or current_time - self._last_update >= self._map_update_interval:
             eq = self.eew.earthquake
-            if not eq._calc_task.done():
+            if not eq.map._drawn:
                 intensity_embed.remove_image()
                 file = {}
             else:
-                eq.map.draw_wave(current_time - eq.time.timestamp())
+                eq.map.draw_wave(current_time - eq.time.timestamp() + self.get_latency())
                 file = {"file": discord.File(eq.map.save(), "image.png")}
 
             self._last_update = datetime.now().timestamp()

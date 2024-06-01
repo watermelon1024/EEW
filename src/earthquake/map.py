@@ -8,6 +8,9 @@ if TYPE_CHECKING:
 
 import warnings
 
+import matplotlib.image as mpimg
+from matplotlib.offsetbox import AnnotationBbox, OffsetImage
+
 from .location import COUNTRY_DATA, TAIWAN_CENTER, TOWN_DATA, TOWN_RANGE
 
 plt.ioff()
@@ -27,6 +30,8 @@ INTENSITY_COLOR: dict[int, str] = {
     8: "#7B170F",
     9: "#7237C1",
 }
+legend_img = mpimg.imread("legend.png")
+legend_offset = OffsetImage(legend_img, zoom=0.5)
 
 
 class Map:
@@ -101,6 +106,23 @@ class Map:
             color="red",
             s=160 / zoom,
             linewidths=2.5 / zoom,
+        )
+        # add legend
+        if self._eq.lon > TAIWAN_CENTER.lon:
+            x = 1
+            align = 0.8
+        else:
+            x = 0
+            align = 0.2
+        self.ax.add_artist(
+            AnnotationBbox(
+                OffsetImage(legend_img, zoom=0.5),
+                (x, 0),
+                xycoords="axes fraction",
+                boxcoords="axes fraction",
+                box_alignment=(align, 0.2),
+                frameon=False,
+            )
         )
         self._drawn = True
 

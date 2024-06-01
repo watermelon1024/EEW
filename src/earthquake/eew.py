@@ -183,8 +183,16 @@ class EarthquakeData:
         return self._expected_intensity
 
     def calc_all_data(self):
-        self.calc_expected_intensity()
-        self.map.draw()
+        try:
+            self.calc_expected_intensity()
+            self.map.draw()
+        except asyncio.CancelledError:
+            self._map._drawn = False
+            pass
+        except Exception:
+            self._calc_task.cancel()
+        finally:
+            pass
 
     def calc_all_data_in_executor(self, loop: asyncio.AbstractEventLoop):
         if self._calc_task is None:
