@@ -30,7 +30,7 @@ class EEWClient(ABC):
         self._calc_site_effect = calculate_site_effect
         self._notification_client = notification_client or []
 
-        self.__API_VERSION = api_version
+        self._API_VERSION = api_version
         self.BASE_URL = f"https://api-2.exptech.com.tw/api/v{api_version}"
 
     def add_notification(self, client: NotificationClient):

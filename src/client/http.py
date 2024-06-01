@@ -1,10 +1,28 @@
 import asyncio
+import random
+import time
 
 import aiohttp
 
 from ..earthquake.eew import EEW
 from ..utils import MISSING
 from .abc import EEWClient
+
+DOMAIN = "exptech.dev"
+API_NODES = [f"https://api-{i}.{DOMAIN}" for i in range(1, 3)]
+
+
+async def _check_latency(session: aiohttp.ClientSession, node: str):
+    try:
+        start = time.time()
+        async with session.get(f"{node}/eq/eew") as response:
+            if 200 <= response.status < 300:
+                latency = time.time() - start
+                return node, latency
+            else:
+                return node, float("inf")
+    except Exception:
+        return node, float("inf")
 
 
 class HTTPEEWClient(EEWClient):
@@ -16,6 +34,8 @@ class HTTPEEWClient(EEWClient):
     __task: asyncio.Task = MISSING
     __event_loop: asyncio.AbstractEventLoop = MISSING
     _alerts: dict[str, EEW] = {}
+    node_latencies: list[tuple[str, float]] = []
+    _current_node_index: int = 0
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -75,6 +95,24 @@ class HTTPEEWClient(EEWClient):
         # call custom notification client
         await asyncio.gather(*(c.lift_eew(eew) for c in self._notification_client), return_exceptions=True)
 
+    def switch_api_node(self, type: str = "next"):
+        """
+        Switch to the API node.
+
+        :param type: The type of the API node, supports `next`, `fastest` and `random`.
+        :type type: str
+        """
+        if type == "next":
+            self._current_node_index = (self._current_node_index + 1) % len(self.node_latencies)
+            self.BASE_URL = self.node_latencies[self._current_node_index][0]
+        elif type == "fastest":
+            self.BASE_URL = self.node_latencies[0][0]
+        elif type == "random":
+            self.BASE_URL = random.choice(self.node_latencies)[0]
+        else:
+            raise ValueError(f"Invalid type: {type}")
+        self.logger.info(f"Switched to API node: {self.BASE_URL}")
+
     async def _get_request(self, retry: int = 0):
         try:
             async with self.__session.get(f"{self.BASE_URL}/eq/eew?type=cwa") as r:
@@ -84,6 +122,8 @@ class HTTPEEWClient(EEWClient):
         except Exception as e:
             if retry > 0:
                 self.recreate_session()
+                self.switch_api_node()
+                await asyncio.sleep(1)
                 return await self._get_request(retry - 1)
             self.logger.exception("Fail to get eew data.", exc_info=e)
             return
@@ -120,6 +160,14 @@ class HTTPEEWClient(EEWClient):
         """
         self.recreate_session()
         self.run_notification_client()
+        # get the fastest node
+        latencies = await asyncio.gather(
+            *(_check_latency(self.__session, f"{url}/api/v{self._API_VERSION}") for url in API_NODES)
+        )
+        self.node_latencies = sorted(latencies, key=lambda x: (x[1], x[0]))
+        self.BASE_URL = self.node_latencies[0][0]
+        self.logger.debug(f"API node latencies: {self.node_latencies}")
+        self.logger.info(f"Using fastest API node: {self.BASE_URL}")
         await self._loop()
 
     def run(self):
