@@ -81,13 +81,13 @@ class WaveModel:
             float(self._s_travel_time_interp_func(distance)),
         )
 
-    def get_travel_distance(self, time: float) -> tuple[float, float]:
+    def get_arrival_distance(self, time: float) -> tuple[float, float]:
         """
-        Get the P and S waves travel distances of the earthquake in kilometers.
+        Get the P and S waves arrival distances of the earthquake in degrees.
 
         :param time: The travel time in seconds.
         :type time: float
-        :return: P and S waves travel distances in degrees.
+        :return: P and S waves arrival distances in degrees.
         :rtype: tuple[float, float]
         """
         return (

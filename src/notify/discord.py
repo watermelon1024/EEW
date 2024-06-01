@@ -18,6 +18,22 @@ class NotifyAndChannel(TypedDict):
     mention: Optional[str]
 
 
+class _SingleMessage:
+    """
+    Represents a single message.
+    """
+
+    __slots__ = ("message", "mention")
+
+    def __init__(self, message: discord.Message, mention: Optional[str]) -> None:
+        self.message = message
+        self.mention = mention
+
+    @property
+    def edit(self):
+        return self.message.edit
+
+
 class EEWMessages:
     """
     Represents discord messages with EEW data.
@@ -37,7 +53,7 @@ class EEWMessages:
         "_map_update_interval",
     )
 
-    def __init__(self, bot: "DiscordNotification", eew: EEW, messages: list[discord.Message]) -> None:
+    def __init__(self, bot: "DiscordNotification", eew: EEW, messages: list[_SingleMessage]) -> None:
         """
         Initialize a new discord message.
 
@@ -46,14 +62,14 @@ class EEWMessages:
         :param eew: The EEW instance.
         :type eew: EEW
         :param message: The discord message.
-        :type message: discord.Message
+        :type message: _SingleMessage
         """
         self.bot = bot
         self.eew = eew
         self.messages = messages
 
         self._info_embed: Optional[discord.Embed] = None
-        self._intensity_embed = discord.Embed(title="震度等級預估", description="計算中...")
+        self._intensity_embed = None
         self._region_intensity: Optional[dict[tuple[str, str], tuple[str, int]]] = None
         self.map_url: Optional[str] = None
         self._bot_latency: float = 0
@@ -123,17 +139,23 @@ class EEWMessages:
         return self._region_intensity
 
     async def _send_singal_message(self, channel: discord.TextChannel, mention: Optional[str] = None):
+        eq = self.eew.earthquake
         try:
-            return await channel.send(mention, embed=self._info_embed)  # type: ignore
+            return _SingleMessage(
+                await channel.send(
+                    f"{mention or ''} {eq.time.strftime('%H:%M:%S')} 於 {eq.location.display_name or eq.location} 發生規模`{eq.mag}`有感地震，慎防搖晃！",
+                ),
+                mention,
+            )
         except Exception as e:
             self.bot.logger.exception(f"Failed to send message in {channel.name}", exc_info=e)
             return None
 
-    async def _edit_singal_message(self, message: discord.Message, map_embed: discord.Embed):
+    async def _edit_singal_message(self, message: _SingleMessage, intensity_embed: discord.Embed, **kwargs):
         try:
-            return await message.edit(embeds=[self._info_embed, map_embed])  # type: ignore
+            return await message.edit(content=message.mention, embeds=[self._info_embed, intensity_embed], **kwargs)  # type: ignore
         except Exception as e:
-            self.bot.logger.exception(f"Failed to edit message {message.id}", exc_info=e)
+            self.bot.logger.exception(f"Failed to edit message {message.message.id}", exc_info=e)
             return None
 
     @classmethod
@@ -156,7 +178,6 @@ class EEWMessages:
         :rtype: EEWMessage
         """
         self = cls(bot, eew, [])
-        self.info_embed()
         self.messages = list(
             filter(
                 None,
@@ -167,7 +188,9 @@ class EEWMessages:
         )
         if not self.messages:
             return None
-        self.intensity_embed()
+
+        self._info_embed = self.info_embed()
+        self._intensity_embed = discord.Embed(title="震度等級預估", description="計算中...")
         return self
 
     async def edit(self) -> None:
@@ -188,7 +211,7 @@ class EEWMessages:
             self._last_update = datetime.now().timestamp()
             self._map_update_interval = max(self._last_update - current_time, self._map_update_interval)
 
-            m = await self.messages[0].edit(embeds=[self._info_embed, intensity_embed], **file)  # type: ignore
+            m = await self._edit_singal_message(self.messages[0], intensity_embed, **file)
             if len(m.embeds) > 1 and (image := m.embeds[1].image):
                 self.map_url = image.url
             elif self.eew.earthquake.map.image is not None:
@@ -326,8 +349,6 @@ class DiscordNotification(NotificationClient, discord.Bot):
 
         if not self.update_eew_messages_loop.is_running():
             self.update_eew_messages_loop.start()
-
-        m.get_region_intensity()
 
         return m
 
