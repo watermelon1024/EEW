@@ -1,5 +1,6 @@
 import asyncio
 import math
+import os
 from datetime import datetime
 from typing import Optional, TypedDict
 
@@ -255,6 +256,7 @@ class EEWMessages:
             *(self._edit_singal_message(msg, self._intensity_embed) for msg in self.messages[1:]),
             return_exceptions=True,
         )
+        self.bot.load_extensions
 
 
 class DiscordNotification(NotificationClient, discord.Bot):
@@ -285,7 +287,7 @@ class DiscordNotification(NotificationClient, discord.Bot):
 
         self._client_ready = False
         intents = discord.Intents.default()
-        owner_ids = config["discord"].get("owners")
+        owner_ids = config.get("owners")
         super().__init__(owner_ids=owner_ids, intents=intents)
 
     async def get_or_fetch_channel(self, id: int, default=MISSING):
@@ -303,7 +305,7 @@ class DiscordNotification(NotificationClient, discord.Bot):
         if self._client_ready:
             return
 
-        for data in self.config["discord"]["channels"]:
+        for data in self.config["channels"]:
             channel = await self.get_or_fetch_channel(data["id"], None)
             if channel is None:
                 self.logger.warning(f"Ignore channel '{data['id']}' because it was not found.")
@@ -375,3 +377,22 @@ class DiscordNotification(NotificationClient, discord.Bot):
                 await self.lift_eew(m.eew)
             else:
                 await m.edit()
+
+
+NAMESPACE = "discord-bot"
+
+
+def register(config: Config, logger: Logger) -> None:
+    """
+    Register the discord notification client.
+
+    :param config: The configuration of discord bot.
+    :type config: Config
+    :param logger: The logger instance.
+    :type logger: Logger
+    """
+    token = os.getenv("DISCORD_BOT_TOKEN")
+    if token is None:
+        raise ValueError("No discord bot token provided.")
+
+    return DiscordNotification(logger, config, token)

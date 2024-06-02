@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from ..config import Config
 from ..earthquake.location import RegionLocation
 from ..logging import Logger
-from ..notify.abc import NotificationClient
+from ..notification.abc import NotificationClient
 from ..utils import MISSING
 
 
