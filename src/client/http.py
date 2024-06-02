@@ -151,7 +151,7 @@ class HTTPEEWClient(EEWClient):
             if not self.__task or self.__task.done():
                 self.__task = self.__event_loop.create_task(self._get_request(3))
 
-            await asyncio.sleep(1)
+            await asyncio.sleep(0.5)
 
     async def start(self):
         """
