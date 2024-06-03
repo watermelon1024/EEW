@@ -29,23 +29,24 @@ def main():
     for root, dirs, files in os.walk("src/notification"):
         for file in files:
             if file.endswith(".py") and not file.startswith("__"):
-                module_name = f"{root}.{file[:-3]}".replace("/", ".")
-                logger.debug(f"Importing {module_name}")
+                module_name = file[:-3]
+                module_path = f"{root}.{module_name}".replace("/", ".")
+                logger.debug(f"Importing {module_path}")
                 try:
-                    module = importlib.import_module(module_name)
+                    module = importlib.import_module(module_path)
                     register = getattr(module, "register", None)
                     if register is None:
-                        logger.debug(f"No register function for {module_name}, ignoring")
+                        logger.debug(f"No register function for {module_path}, ignoring")
                         continue
                     namespace = getattr(module, "NAMESPACE", module_name)
                     _config = config.get(namespace)
                     if _config is None:
-                        logger.warning(f"No config '{namespace}' for {module_name}, ignoring")
+                        logger.warning(f"No config '{namespace}' for {module_path}, ignoring")
                         continue
-                    logger.debug(f"Registering {module_name}")
+                    logger.debug(f"Registering {module_path}")
                     client.add_notification(register(_config, logger))
-                    logger.info(f"Registered {module_name} successfully")
+                    logger.info(f"Registered {module_path} successfully")
                 except Exception as e:
-                    logger.exception(f"Failed to import {module_name}", exc_info=e)
+                    logger.exception(f"Failed to import {module_path}", exc_info=e)
 
     client.run()
