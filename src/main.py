@@ -28,6 +28,8 @@ def main():
 
     for root, dirs, files in os.walk("src/notification"):
         for file in files:
+            if file == "template.py":
+                continue
             if file.endswith(".py") and not file.startswith("__"):
                 module_name = file[:-3]
                 module_path = f"{root}.{module_name}".replace("/", ".")
