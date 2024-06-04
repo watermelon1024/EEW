@@ -1,5 +1,7 @@
 # EEW
- Earthquake early warning
+ Earthquake Early Warning
+
+ This Project using API provided by [Exptech](https://exptech.com.tw), please follow it's [ToS](https://exptech.com.tw/tos)!
 
  *Note: This project is currently a beta version.*
 
