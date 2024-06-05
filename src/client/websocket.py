@@ -160,7 +160,6 @@ class WebsocketClient(EEWClient):
 
                     async for msg in ws:
                         self.logger.debug(f"WebSocket received message: {msg}")
-                        print(msg)
                         if msg.type == WSMsgType.TEXT:
                             await self._handle_message(msg.data)
                         elif msg.type == aiohttp.WSMsgType.CLOSED:
