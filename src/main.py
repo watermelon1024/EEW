@@ -4,7 +4,6 @@ import os
 
 from dotenv import load_dotenv
 
-from .client.http import HTTPEEWClient
 from .config import Config
 from .logging import InterceptHandler, Logging
 
@@ -24,7 +23,20 @@ def main():
         force=True,
     )
 
-    client = HTTPEEWClient(config, logger)
+    key = os.getenv("API_KEY")
+    if key:
+        logger.info("Using WebSocket Client")
+        from .client.websocket import SupportedService, WebsocketClient, WebSocketConnectionConfig
+
+        ws_config = WebSocketConnectionConfig(
+            key=key, service=[SupportedService.Eew, SupportedService.TremEew]
+        )
+        client = WebsocketClient(config=config, logger=logger, websocket_config=ws_config)
+    else:
+        logger.info("API_KEY not found, using HTTP Client")
+        from .client.http import HTTPEEWClient
+
+        client = HTTPEEWClient(config=config, logger=logger)
 
     for root, dirs, files in os.walk("src/notification"):
         for file in files:

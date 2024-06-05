@@ -14,6 +14,11 @@ from .model import (
 
 PROVIDER_DISPLAY = {
     "cwa": "中央氣象署",
+    "trem": "TREM 臺灣即時地震監測",
+    "kam": "기상청 날씨누리",
+    "jma": "気象庁",
+    "nied": "防災科研",
+    "scdzj": "四川省地震局",
 }
 
 
