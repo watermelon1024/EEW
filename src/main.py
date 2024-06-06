@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 from .config import Config
 from .logging import InterceptHandler, Logging
 
-load_dotenv()
+load_dotenv(override=True)
 
 
 def main():
@@ -25,17 +25,17 @@ def main():
 
     key = os.getenv("API_KEY")
     if key:
-        logger.info("Using WebSocket Client")
         from .client.websocket import SupportedService, WebsocketClient, WebSocketConnectionConfig
 
+        logger.info("API_KEY found, using WebSocket Client")
         ws_config = WebSocketConnectionConfig(
             key=key, service=[SupportedService.Eew, SupportedService.TremEew]
         )
         client = WebsocketClient(config=config, logger=logger, websocket_config=ws_config)
     else:
-        logger.info("API_KEY not found, using HTTP Client")
         from .client.http import HTTPEEWClient
 
+        logger.info("API_KEY not found, using HTTP Client")
         client = HTTPEEWClient(config=config, logger=logger)
 
     for root, dirs, files in os.walk("src/notification"):
@@ -45,7 +45,7 @@ def main():
             if file.endswith(".py") and not file.startswith("__"):
                 module_name = file[:-3]
                 module_path = f"{root}.{module_name}".replace("/", ".")
-                logger.debug(f"Importing {module_path}")
+                logger.debug(f"Importing {module_path}...")
                 try:
                     module = importlib.import_module(module_path)
                     register = getattr(module, "register", None)
@@ -55,12 +55,13 @@ def main():
                     namespace = getattr(module, "NAMESPACE", module_name)
                     _config = config.get(namespace)
                     if _config is None:
-                        logger.warning(f"No config '{namespace}' for {module_path}, ignoring")
+                        logger.debug(f"No config '{namespace}' for {module_path}, ignoring")
                         continue
                     logger.debug(f"Registering {module_path}")
                     client.add_notification(register(_config, logger))
-                    logger.info(f"Registered {module_path} successfully")
+                    logger.success(f"Registered {module_path} successfully")
                 except Exception as e:
                     logger.exception(f"Failed to import {module_path}", exc_info=e)
 
     client.run()
+    logger.remove()

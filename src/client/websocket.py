@@ -230,7 +230,11 @@ class WebsocketClient(EEWClient):
     async def on_info(self, data: dict):
         message = data.get("message")
         code = data.get("code")
-        if "already in used" in message:
+        if code == 401:
+            self.logger.error("Invaild authentication key.")
+            self.close()
+            raise AuthorizationFailed("Invaild authentication key.")
+        elif "already in used" in message:
             self._connect_retry_delay += 30
             self.logger.error(
                 f"Authentication key is already in used, reconnect in {self._connect_retry_delay} seconds..."
@@ -238,10 +242,13 @@ class WebsocketClient(EEWClient):
             await self.close()
             await asyncio.sleep(self._connect_retry_delay)
             self.recreate()
-        elif code == 401:
-            self.logger.error("Invaild authentication key.")
-            self.close()
-            raise AuthorizationFailed("Invaild authentication key.")
+        elif "Subscripted service" in message:
+            self.logger.info(
+                "EEW WebSocket is ready\n"
+                "-------------------------\n"
+                f"Subscripted services: {''.join(data['list'])}\n"
+                "-------------------------"
+            )
 
     async def on_eew(self, data: dict):
         _check_finished_alerts = set(self._alerts.keys())
