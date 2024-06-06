@@ -1,6 +1,8 @@
 # EEW
  Earthquake Early Warning
 
+ [English](https://github.com/watermelon1024/EEW/blob/main/README.md) | [繁體中文](https://github.com/watermelon1024/EEW/blob/main/docs/README/README-zh-TW.md)
+
  此專案使用由 [Exptech](https://exptech.com.tw) 提供的API，請遵照其[服務條款](https://exptech.com.tw/tos)!
 
  *注意： 此專案目前還是測試版本*
