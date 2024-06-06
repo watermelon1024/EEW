@@ -87,8 +87,10 @@ class WebSocketConnectionConfig:
 class WebsocketClient(EEWClient):
     _alerts: dict[str, EEW] = {}
     __event_loop: Optional[asyncio.AbstractEventLoop] = MISSING
+    __task: Optional[asyncio.Task] = MISSING
     ws: Optional[ClientWebSocketResponse] = MISSING
     event_handlers = defaultdict(list)
+    _reconnect = True
     _connect_retry_delay = 0
 
     def __init__(self, *args, websocket_config: WebSocketConnectionConfig, **kwargs):
@@ -153,8 +155,15 @@ class WebsocketClient(EEWClient):
         """Send the verify data"""
         await self.ws.send_json(self.websocket_config.to_dict())
 
+    def recreate(self):
+        """Recreate the WebSocket connection"""
+        self._reconnect = True
+        if not self.__task:
+            self.__task = self.__event_loop.create_task(self._loop())
+        return self.__task
+
     async def _loop(self):
-        while True:
+        while self._reconnect:
             try:
                 if self.ws and not self.ws.closed:
                     await self.ws.close()
@@ -173,8 +182,8 @@ class WebsocketClient(EEWClient):
                             break
                         elif msg.type == WSMsgType.ERROR:
                             await self._emit(WebSocketEvent.Error, ws.exception())
-            except AuthorizationFailed as e:
-                raise e
+            except AuthorizationFailed:
+                raise
             except aiohttp.ClientConnectorError as e:
                 self.logger.exception("Connection failed, retrying...", exc_info=e)
             except Exception as e:
@@ -222,14 +231,16 @@ class WebsocketClient(EEWClient):
         message = data.get("message")
         code = data.get("code")
         if "already in used" in message:
-            self._connect_retry_delay += 60
+            self._connect_retry_delay += 30
             self.logger.error(
-                f"Authentication key is already in used, retry in {self._connect_retry_delay} seconds..."
+                f"Authentication key is already in used, reconnect in {self._connect_retry_delay} seconds..."
             )
+            await self.close()
             await asyncio.sleep(self._connect_retry_delay)
-            await self.verify()
+            self.recreate()
         elif code == 401:
             self.logger.error("Invaild authentication key.")
+            self.close()
             raise AuthorizationFailed("Invaild authentication key.")
 
     async def on_eew(self, data: dict):
@@ -248,11 +259,8 @@ class WebsocketClient(EEWClient):
             if eew is not None:
                 await self.lift_alert(eew)
 
-    async def update_config(self, websocket_config: WebSocketConnectionConfig):
-        self.websocket_config = websocket_config
-        await self.verify()
-
     async def close(self):
+        self._reconnect = False
         if self.ws:
             await self.ws.close()
 
