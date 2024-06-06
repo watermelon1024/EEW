@@ -46,9 +46,8 @@
  DISCORD_BOT_TOKEN=  # discord bot token
  ```
 
-### 4. Edit the Configuration
+ ### 4. Edit the Configuration
  Rename the `config.toml.example` file to `config.toml` and fill in the required values for each configuration according to your demand.
-
 
  ### 5. Install Dependencies
  Install the dependencies required for the project.
