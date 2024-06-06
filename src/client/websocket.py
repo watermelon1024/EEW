@@ -15,6 +15,12 @@ from .abc import EEWClient
 DOMAIN = "exptech.dev"
 
 
+class AuthorizationFailed(Exception):
+    """
+    Represents an authorization failure.
+    """
+
+
 class WebSocketEvent(Enum):
     Eew = "eew"
     Info = "info"
@@ -83,6 +89,7 @@ class WebsocketClient(EEWClient):
     __event_loop: Optional[asyncio.AbstractEventLoop] = MISSING
     ws: Optional[ClientWebSocketResponse] = MISSING
     event_handlers = defaultdict(list)
+    _connect_retry_delay = 0
 
     def __init__(self, *args, websocket_config: WebSocketConnectionConfig, **kwargs):
         super().__init__(*args, **kwargs)
@@ -166,7 +173,8 @@ class WebsocketClient(EEWClient):
                             break
                         elif msg.type == WSMsgType.ERROR:
                             await self._emit(WebSocketEvent.Error, ws.exception())
-
+            except AuthorizationFailed as e:
+                raise e
             except aiohttp.ClientConnectorError as e:
                 self.logger.exception("Connection failed, retrying...", exc_info=e)
             except Exception as e:
@@ -204,7 +212,7 @@ class WebsocketClient(EEWClient):
 
     async def _emit(self, event: WebSocketEvent, *args):
         for handler in self.event_handlers[event]:
-            await handler(*args)
+            self.__event_loop.create_task(handler(*args))
 
     def on(self, event: WebSocketEvent, listener):
         self.event_handlers[event].append(listener)
@@ -212,11 +220,17 @@ class WebsocketClient(EEWClient):
 
     async def on_info(self, data: dict):
         message = data.get("message")
-        # code = data.get("code")
+        code = data.get("code")
         if "already in used" in message:
-            self.logger.error("Authentication key is already in used, retry in 1 minutes...")
-            await asyncio.sleep(60)
+            self._connect_retry_delay += 60
+            self.logger.error(
+                f"Authentication key is already in used, retry in {self._connect_retry_delay} seconds..."
+            )
+            await asyncio.sleep(self._connect_retry_delay)
             await self.verify()
+        elif code == 401:
+            self.logger.error("Invaild authentication key.")
+            raise AuthorizationFailed("Invaild authentication key.")
 
     async def on_eew(self, data: dict):
         _check_finished_alerts = set(self._alerts.keys())
