@@ -283,7 +283,8 @@ class DiscordNotification(NotificationClient, discord.Bot):
         self.config = config
         self.token = token
 
-        # logger.disable("discord")  # avoid pycord shard info spamming the console
+        if not config.get("enable-log"):
+            logger.disable("discord")  # avoid pycord shard info spamming the console
 
         self._client_ready = False
         intents = discord.Intents.default()
