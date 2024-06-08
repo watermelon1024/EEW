@@ -38,30 +38,40 @@ def main():
         logger.info("API_KEY not found, using HTTP Client")
         client = HTTPEEWClient(config=config, logger=logger)
 
-    for root, dirs, files in os.walk("src/notification"):
-        for file in files:
-            if file == "template.py":
+    for path in os.scandir("src/notification"):
+        if path.name == "base.py" or path.name == "template" or path.name.startswith("__"):
+            continue
+        if path.is_file() and path.name.endswith(".py"):
+            module_name = path.name[:-3]
+            module_path = f"src.notification.{module_name}"
+        elif path.is_dir():
+            module_name = path.name
+            module_path = f"src.notification.{module_name}.main"
+        else:
+            logger.debug(f"Unknown file type: {path.name}, ignoring")
+            continue
+        try:
+            logger.debug(f"Importing {module_path}...")
+            module = importlib.import_module(module_path)
+            register_func = getattr(module, "register", None)
+            if register_func is None:
+                logger.debug(f"No register function in {module_path}, ignoring")
                 continue
-            if file.endswith(".py") and not file.startswith("__"):
-                module_name = file[:-3]
-                module_path = f"{root}.{module_name}".replace("/", ".")
-                logger.debug(f"Importing {module_path}...")
-                try:
-                    module = importlib.import_module(module_path)
-                    register = getattr(module, "register", None)
-                    if register is None:
-                        logger.debug(f"No register function for {module_path}, ignoring")
-                        continue
-                    namespace = getattr(module, "NAMESPACE", module_name)
-                    _config = config.get(namespace)
-                    if _config is None:
-                        logger.debug(f"No config '{namespace}' for {module_path}, ignoring")
-                        continue
-                    logger.debug(f"Registering {module_path}")
-                    client.add_notification(register(_config, logger))
-                    logger.success(f"Registered {module_path} successfully")
-                except Exception as e:
-                    logger.exception(f"Failed to import {module_path}", exc_info=e)
+            namespace = getattr(module, "NAMESPACE", module_name)
+            _config = config.get(namespace)
+            if _config is None:
+                logger.debug(f"No config '{namespace}' for {module_name}, ignoring")
+                continue
+            logger.debug(f"Registering {module_path}")
+            client.add_notification(register_func(_config, logger))
+            logger.success(f"Registered notification client '{module_name}' successfully")
+        except ModuleNotFoundError as e:
+            if e.name == module_path:
+                logger.error(f"Failed to import '{module_name}': '{module_path}' not found")
+            else:
+                logger.error(f"Failed to registered '{module_name}' (most likely lacking of dependencies)")
+        except Exception as e:
+            logger.exception(f"Failed to import {module_path}", exc_info=e)
 
     client.run()
     logger.remove()

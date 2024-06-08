@@ -11,7 +11,7 @@ from ..config import Config
 from ..earthquake.eew import EEW
 from ..logging import Logger
 from ..utils import MISSING
-from .abc import NotificationClient
+from .base import NotificationClient
 
 
 class NotifyAndChannel(TypedDict):
