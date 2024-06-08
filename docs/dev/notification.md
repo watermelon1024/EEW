@@ -1,7 +1,10 @@
 # 自訂通知客戶端
   請遵照`src/notification/template.py`的格式，撰寫下方內容
+
 ## 開發客戶端功能
   實作客戶端的相關函式：
+
+  (注意：下方範例皆是宣告於 class 中的函式，故第一個傳入參數為 `self`)
   - `send_eew`：發送速報消息，主程式收到新速報時，會呼叫該函式並傳入速報資料
     ```py
     async def send_eew(self, eew: EEW):
@@ -40,6 +43,16 @@
   async def send_eew(self, eew: EEW):
     requests.post(url, ...)  # do not use blocking calls
   ```
+
+  然而，若無可避免地需要使用阻塞呼叫，請善用線程函式庫：
+  ```py
+  import threading
+
+  async def run(self):
+    thread = threading.Thread(target=start_func)
+    thread.run()
+  ```
+
 ## 註冊客戶端
   客戶端功能撰寫完成後，請創建一個`register`函式將其註冊到主程式中：
   ```py
@@ -50,12 +63,12 @@
 
   例如：假設你在設定檔中的命名空間為`custom-client`：
   ```toml
-  # 其他客戶端的設定
+  # 其他設定
 
   [custom-client]
   debug = true
   channel = "123456789"
-  # 其他設定
+  # 其他客戶端的設定
   ```
   那麼，你的`custom_client.py`中的`NAMESPACE`值就應該宣告為`custom-client`
   ```py
@@ -68,6 +81,7 @@
     debug_mode = config["debug"]
     notification_channel = config["channel"]
     ...
+    return CustomNotificationClient(logger, debug_mode, notification_channel, ...)
   ```
 
 # 一同貢獻
