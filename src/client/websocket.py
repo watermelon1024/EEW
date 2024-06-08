@@ -178,16 +178,44 @@ class WebsocketClient(EEWClient):
                 if data.get("type") == WebSocketEvent.Info.value:
                     data = data["data"]
                     message = data.get("message")
-                    if message == "Invaild key!":
-                        raise AuthorizationFailed
-                    if message == "This key already in used!":
-                        raise WebSocketReconnect("API key is already in used")
-                    if message == "Subscripted service list":
+                    code = data.get("code")
+                    if code == 200:
+                        # subscribe successfully
                         return data
+                    elif code == 400:
+                        # api key in used
+                        raise WebSocketReconnect("API key is already in used")
+                    elif code == 401:
+                        # no api key or invalid
+                        raise AuthorizationFailed(message)
+                    elif code == 403:
+                        # vip expired
+                        raise AuthorizationFailed(message)
+                    elif code == 429:
+                        raise WebSocketReconnect("Rate limit exceeded")
 
     async def verify(self):
         """
-        Verify the API KEY and subscrible the services.
+        Re-verify the API KEY (and not send subscribe).
+
+        :raise AuthorizationFailed: If the API key is invalid.
+        :raise WebSocketReconnect: If the API key is already in used.
+        :raise TimeoutError: If the verification times out.
+        """
+        config = self.websocket_config.to_dict()
+        config["service"] = []
+        self.logger.debug(f"Sending config: {config}")
+        await self.ws.send_json(config)
+        try:
+            data = await asyncio.wait_for(self.__wait_for_verify(), timeout=60)
+            self.subscribed_services = data["list"]
+            return data
+        except TimeoutError as e:
+            raise WebSocketReconnect("Verification timeout") from e
+
+    async def verify_and_subscribe(self):
+        """
+        Verify the API KEY and subscribe the services.
 
         :raise AuthorizationFailed: If the API key is invalid.
         :raise WebSocketReconnect: If the API key is already in used.
@@ -214,8 +242,8 @@ class WebsocketClient(EEWClient):
                 if not self.ws or self.ws.closed:
                     self.ws = await self.__session.ws_connect(self.get_websocket_route())
                 # send identify
-                await self.verify()
-                if not in_reconnect:
+                await self.verify_and_subscribe()
+                if not in_reconnect or not self.__ready:
                     self.logger.info(
                         "EEW WebSocket is ready\n"
                         "--------------------------------------------------\n"
