@@ -1,10 +1,10 @@
 # 自訂通知客戶端
   你有兩種方式可以製作你自訂客戶端：
   1. 單獨檔案\
-    在`src/notification/`下建立你自己的python檔案，並遵照`src/notification/template/main.py`的格式，撰寫[下方](#開發客戶端功能)內容
-  
+    在`src/notification/`下建立你自己的python檔案(即`src/notification/your_client.py`)，並遵照`src/notification/template/main.py`的格式，撰寫[下方](#開發客戶端功能)內容
+
   2. 包裝成模組(module)\
-    在`src/notification/`下創建一個資料夾，你可以盡情的在裡面寫你的自訂客戶端，內部結構由你自行決定，只需在第一層(即`src/notification/your_client/`)的地方建立一個`main.py`檔案，並在裡面定義`NAMESPACE`常數和`register`函式即可(見[註冊客戶端](#註冊客戶端))
+    在`src/notification/`下創建一個資料夾，你可以盡情的在裡面寫你的自訂客戶端，內部結構由你自行決定，只需在第一層建立`main.py`檔案(即`src/notification/your_client/main.py`)，並在裡面定義`NAMESPACE`常數和`register`函式即可(見[註冊客戶端](#註冊客戶端))
 
 ## 開發客戶端功能
   實作客戶端的相關函式：\
@@ -51,9 +51,13 @@
   ```py
   import threading
 
-  async def run(self):
-    thread = threading.Thread(target=start_func)
-    thread.run()
+  class CustomNotificationClient(NotificationClient):
+    def blocking_func(self):
+      ...
+
+    async def run(self):
+      thread = threading.Thread(target=self.blocking_func)
+      thread.run()
   ```
 
 ## 註冊客戶端
@@ -72,7 +76,7 @@
   channel = "123456789"
   # 其他客戶端的設定
   ```
-  那麼，你的`custom_client.py`中的`NAMESPACE`值就應該宣告為`custom-client`
+  那麼，你的`custom_client.py`中的`NAMESPACE`值就應該宣告為`custom-client`：
   ```py
   class CustomNotificationClient(NotificationClient):
     ...
