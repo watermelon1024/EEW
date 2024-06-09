@@ -1,11 +1,37 @@
 # EEW
- Earthquake Early Warning
 
- [English](https://github.com/watermelon1024/EEW/blob/main/README.md) | [繁體中文](https://github.com/watermelon1024/EEW/blob/main/docs/README/README-zh-TW.md)
+ [![Contributors][contributors-shield]][contributors-url]
+ [![Forks][forks-shield]][forks-url]
+ [![Stargazers][stars-shield]][stars-url]
+ [![Issues][issues-shield]][issues-url]
+ [![License][license-shield]][license-url]
 
- 此專案使用由 [Exptech](https://exptech.com.tw) 提供的API，請遵照其[服務條款](https://exptech.com.tw/tos)!
+ [contributors-shield]: https://img.shields.io/github/contributors/watermelon1024/EEW.svg?style=for-the-badge
+ [contributors-url]: https://github.com/watermelon1024/EEW/graphs/contributors
 
- *注意： 此專案目前還是測試版本*
+ [forks-shield]: https://img.shields.io/github/forks/watermelon1024/EEW.svg?style=for-the-badge
+ [forks-url]: https://github.com/watermelon1024/EEW/network/members
+
+ [stars-shield]: https://img.shields.io/github/stars/watermelon1024/EEW.svg?style=for-the-badge
+ [stars-url]: https://github.com/watermelon1024/EEW/stargazers
+
+ [issues-shield]: https://img.shields.io/github/issues/watermelon1024/EEW.svg?style=for-the-badge
+ [issues-url]: https://github.com/watermelon1024/EEW/issues
+
+ [license-shield]: https://img.shields.io/github/license/watermelon1024/EEW.svg?style=for-the-badge
+ [license-url]: https://github.com/watermelon1024/EEW/blob/main/LICENSE
+
+ [English](https://github.com/watermelon1024/EEW/blob/main/README.md) | [>繁體中文<](https://github.com/watermelon1024/EEW/blob/main/docs/README/README-zh-TW.md)
+
+ ---
+
+ 一個簡單、強大、免費且易於擴充的地震預警通知系統。
+
+ ---
+
+ 此專案使用由 [Exptech](https://exptech.com.tw) 提供的 API，請遵照其[服務條款](https://exptech.com.tw/tos)。
+
+ *注意： 此專案目前仍處於測試版本。*
 
 # 安裝
  **需要 Python 3.8 或更高的版本**
