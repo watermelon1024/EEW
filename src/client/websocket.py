@@ -186,7 +186,7 @@ class WebsocketClient(EEWClient):
                         # api key in used
                         raise WebSocketReconnect("API key is already in used")
                     elif code == 401:
-                        # no api key or invalid
+                        # no api key or invalid api key
                         raise AuthorizationFailed(message)
                     elif code == 403:
                         # vip expired
@@ -194,16 +194,7 @@ class WebsocketClient(EEWClient):
                     elif code == 429:
                         raise WebSocketReconnect("Rate limit exceeded")
 
-    async def verify(self):
-        """
-        Re-verify the API KEY (and not send subscribe).
-
-        :raise AuthorizationFailed: If the API key is invalid.
-        :raise WebSocketReconnect: If the API key is already in used.
-        :raise TimeoutError: If the verification times out.
-        """
-        config = self.websocket_config.to_dict()
-        config["service"] = []
+    async def _send_verify(self, config: dict):
         self.logger.debug(f"Sending config: {config}")
         await self.ws.send_json(config)
         try:
@@ -212,6 +203,23 @@ class WebsocketClient(EEWClient):
             return data
         except TimeoutError as e:
             raise WebSocketReconnect("Verification timeout") from e
+
+    async def verify_only(self):
+        """
+        Re-verify the API KEY (but not send subscribe).
+
+        :raise AuthorizationFailed: If the API key is invalid.
+        :raise WebSocketReconnect: If the API key is already in used.
+        :raise TimeoutError: If the verification times out.
+        """
+        await self._send_verify(
+            {
+                "type": "start",
+                "key": self.websocket_config.key,
+                "service": [],
+                "config": None,
+            }
+        )
 
     async def verify_and_subscribe(self):
         """
@@ -221,15 +229,7 @@ class WebsocketClient(EEWClient):
         :raise WebSocketReconnect: If the API key is already in used.
         :raise TimeoutError: If the verification times out.
         """
-        config = self.websocket_config.to_dict()
-        self.logger.debug(f"Sending config: {config}")
-        await self.ws.send_json(config)
-        try:
-            data = await asyncio.wait_for(self.__wait_for_verify(), timeout=60)
-            self.subscribed_services = data["list"]
-            return data
-        except TimeoutError as e:
-            raise WebSocketReconnect("Verification timeout") from e
+        await self._send_verify(self.websocket_config.to_dict())
 
     async def connect(self):
         """Connect to the WebSocket"""
@@ -293,13 +293,13 @@ class WebsocketClient(EEWClient):
     async def _dispatch_event(self, data: dict[str, Any]):
         event_type = data.get("type")
         if event_type == WebSocketEvent.Verify.value:
-            await self.verify()
+            await self.verify_only()
         elif event_type == WebSocketEvent.Info.value:
             data = data.get("data", {})
             code = data.get("code")
             if code == 503:
                 await asyncio.sleep(5)
-                await self.verify()
+                await self.verify_only()
             else:
                 await self._emit(WebSocketEvent.Info, data)
         elif event_type == "data":
@@ -322,20 +322,11 @@ class WebsocketClient(EEWClient):
         if data["author"] != "cwa":
             # only receive caw's eew
             return
-        _check_finished_alerts = set(self._alerts.keys())
-        id = data["id"]
-        _check_finished_alerts.discard(id)
-        eew = self._alerts.get(id)
+        eew = self._alerts.get(data["id"])
         if eew is None:
             await self.new_alert(data)
-        elif eew.serial != data["serial"]:
+        else:
             await self.update_alert(data)
-
-        # remove finished alerts
-        for id in _check_finished_alerts:
-            eew = self._alerts.pop(id, None)
-            if eew is not None:
-                await self.lift_alert(eew)
 
     async def close(self):
         """Close the websocket"""
