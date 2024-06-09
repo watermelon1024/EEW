@@ -45,8 +45,9 @@ class LineNotification(NotificationClient):
                 
         self.app = Flask(__name__)
 
-        self.configuration = Configuration(access_token=self.access_token)
-        handler = WebhookHandler(self.channel_secret)
+        self.configuration = Configuration(access_token=access_token)
+        self.configuration = Configuration(channel_secret=channel_secret)
+        self.configuration = Configuration(host = config['host'])
         
         self._client_ready = False
 

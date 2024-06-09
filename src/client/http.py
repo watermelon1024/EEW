@@ -9,7 +9,9 @@ from ..utils import MISSING
 from .abc import EEWClient
 
 DOMAIN = "exptech.dev"
-API_NODES = [f"https://api-{i}.{DOMAIN}" for i in range(1, 3)]
+# API_NODES = [f"https://api-{i}.{DOMAIN}" for i in range(1, 3)]
+API_NODES = ["http://127.0.0.1:8000"] # TODO: Change this to the actual API nodes
+
 
 
 async def _check_latency(session: aiohttp.ClientSession, node: str):
