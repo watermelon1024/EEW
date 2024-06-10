@@ -1,16 +1,20 @@
-import os, uuid
+import asyncio
+import os
+
+from linebot import LineBotApi
+from linebot.models import TextSendMessage
+
 from ..config import Config
 from ..earthquake.eew import EEW
 from ..logging import Logger
 from .abc import NotificationClient
-from flask import Flask
-from linebot import LineBotApi
-from linebot.models import TextSendMessage
+
 
 class LineNotification(NotificationClient):
     """
     Represents a linebot EEW notification client.
     """
+
     alerts: dict[str, str] = {}
     notification_channels: list[str] = []
 
@@ -29,28 +33,18 @@ class LineNotification(NotificationClient):
         """
         self.logger = logger
         self.config = config
-        
-        line_host = config['host']
 
-        for channel_id in self.config['channels']:
+        for channel_id in self.config["channels"]:
             # TODO: check channel status
             self.notification_channels.append(channel_id)
 
         self.api = LineBotApi(access_token)
-       
 
     async def run(self) -> None:
         """
         The entrypoint for the notification client.
-        """        
-        self.logger.info(
-            "LINE Bot is ready.\n"
-            # "-------------------------\n"
-            # f"Logged in as: {self.user.name}#{self.user.discriminator} ({self.user.id})\n"  # type: ignore
-            # f" API Latency: {self.latency * 1000:.2f} ms\n"
-            # f"Guilds Count: {len(self.guilds)}\n"
-            # "-------------------------"
-        )
+        """
+        self.logger.info("LINE Bot is ready")
 
     async def send_eew(self, eew: EEW) -> None:
         """
@@ -61,16 +55,15 @@ class LineNotification(NotificationClient):
         :param eew: The EEW.
         :type eew: EEW
         """
-        self.logger.info
         if len(self.notification_channels) == 0:
-            self.logger.error(f"No LINE notification channels available")
+            self.logger.error("No LINE notification channels available")
             return
-        m = TextSendMessage(text=f"地震警報: {eew.earthquake.magnitude}M")
-        
+        msg = TextSendMessage(text=f"地震警報: {eew.earthquake.mag}M")
+        loop = asyncio.events.get_event_loop()
+
         for channel_id in self.notification_channels:
-            self.api.push_message(channel_id, messages=m)
+            loop.run_in_executor(None, self.api.push_message, channel_id, msg)
             self.logger.info(f"Sent EEW alert to {channel_id}")
-    
 
     async def update_eew(self, eew: EEW):
         """
@@ -81,7 +74,7 @@ class LineNotification(NotificationClient):
         :param eew: The updated EEW.
         :type eew: EEW
         """
-        ...
+        pass
 
     async def lift_eew(self, eew: EEW):
         """
@@ -92,7 +85,7 @@ class LineNotification(NotificationClient):
         :param eew: The lifted EEW.
         :type eew: EEW
         """
-        ...
+        pass
 
 
 NAMESPACE = "line-bot"
