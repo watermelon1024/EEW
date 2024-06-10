@@ -6,8 +6,6 @@ from enum import Enum
 from typing import Any, Optional
 
 import aiohttp
-import aiohttp.client_exceptions
-import aiohttp.http_exceptions
 from aiohttp import ClientWebSocketResponse, WSMsgType
 
 from ..earthquake.eew import EEW
@@ -31,33 +29,33 @@ class WebSocketReconnect(Exception):
 
 
 class WebSocketEvent(Enum):
-    Eew = "eew"
-    Info = "info"
-    Ntp = "ntp"
-    Report = "report"
-    Rts = "rts"
-    Rtw = "rtw"
-    Verify = "verify"
-    Close = "close"
-    Error = "error"
+    EEW = "eew"
+    INFO = "info"
+    NTP = "ntp"
+    REPORT = "report"
+    RTS = "rts"
+    RTW = "rtw"
+    VERIFY = "verify"
+    CLOSE = "close"
+    ERROR = "error"
 
 
 class SupportedService(Enum):
-    RealtimeStation = "trem.rts"
+    REALTIME_STATION = "trem.rts"
     "即時地動資料"
-    RealtimeWave = "trem.rtw"
+    REALTIME_WAVE = "trem.rtw"
     "即時地動波形圖資料"
-    Eew = "websocket.eew"
+    EEW = "websocket.eew"
     "地震速報資料"
-    TremEew = "trem.eew"
+    TREM_EEW = "trem.eew"
     "TREM 地震速報資料"
-    Report = "websocket.report"
+    REPORT = "websocket.report"
     "中央氣象署地震報告資料"
-    Tsunami = "websocket.tsunami"
+    TSUNAMI = "websocket.tsunami"
     "中央氣象署海嘯資訊資料"
-    CwaIntensity = "cwa.intensity"
+    CWA_INTENSITY = "cwa.intensity"
     "中央氣象署震度速報資料"
-    TremIntensity = "trem.intensity"
+    TREM_INTENSITY = "trem.intensity"
     "TREM 震度速報資料"
 
 
@@ -175,7 +173,7 @@ class WebsocketClient(EEWClient):
             self.logger.debug(f"Received message: {msg.data}")
             if msg.type is WSMsgType.TEXT:
                 data = json.loads(msg.data)
-                if data.get("type") == WebSocketEvent.Info.value:
+                if data.get("type") == WebSocketEvent.INFO.value:
                     data = data["data"]
                     message = data.get("message")
                     code = data.get("code")
@@ -283,7 +281,7 @@ class WebsocketClient(EEWClient):
                     raise WebSocketReconnect("WebSocket closed by server")
                 return
             elif msg.type is WSMsgType.ERROR:
-                await self._emit(WebSocketEvent.Error, self.ws.exception())
+                await self._emit(WebSocketEvent.ERROR, self.ws.exception())
 
     async def _handle_message(self, raw: str):
         data = json.loads(raw)
@@ -292,25 +290,25 @@ class WebsocketClient(EEWClient):
 
     async def _dispatch_event(self, data: dict[str, Any]):
         event_type = data.get("type")
-        if event_type == WebSocketEvent.Verify.value:
+        if event_type == WebSocketEvent.VERIFY.value:
             await self.verify_only()
-        elif event_type == WebSocketEvent.Info.value:
+        elif event_type == WebSocketEvent.INFO.value:
             data = data.get("data", {})
             code = data.get("code")
             if code == 503:
                 await asyncio.sleep(5)
                 await self.verify_only()
             else:
-                await self._emit(WebSocketEvent.Info, data)
+                await self._emit(WebSocketEvent.INFO, data)
         elif event_type == "data":
             time = data.get("time")
             data_ = data.get("data", {})
             data_["time"] = time
             data_type = data_.get("type")
             if data_type:
-        elif event_type == WebSocketEvent.Ntp.value:
-            await self._emit(WebSocketEvent.Ntp, data)
                 await self._emit(WebSocketEvent(data_type), data_)
+        elif event_type == WebSocketEvent.NTP.value:
+            await self._emit(WebSocketEvent.NTP, data)
 
     async def _emit(self, event: WebSocketEvent, *args):
         for handler in self.event_handlers[event]:
@@ -347,7 +345,7 @@ class WebsocketClient(EEWClient):
         Note: This coro won't finish forever until user interrupt it.
         """
         self.logger.info("Starting EEW WebSocket Client...")
-        self.on(WebSocketEvent.Eew, self.on_eew)
+        self.on(WebSocketEvent.EEW, self.on_eew)
         self.run_notification_client()
         await self.connect()
 
