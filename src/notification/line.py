@@ -3,29 +3,16 @@ from ..config import Config
 from ..earthquake.eew import EEW
 from ..logging import Logger
 from .abc import NotificationClient
-
-from flask import Flask, request, abort
-from linebot.v3 import (
-    WebhookHandler
-)
-from linebot.v3.exceptions import (
-    InvalidSignatureError
-)
-from linebot.v3.messaging import (
-    Configuration,
-    ApiClient,
-    MessagingApi,
-    BroadcastRequest,
-)
-from linebot.v3.webhooks import (
-    MessageEvent,
-    TextMessageContent
-)
+from flask import Flask
+from linebot import LineBotApi
+from linebot.models import TextSendMessage
 
 class LineNotification(NotificationClient):
     """
-    Represents a [custom] EEW notification client.
+    Represents a linebot EEW notification client.
     """
+    alerts: dict[str, str] = {}
+    notification_channels: list[str] = []
 
     def __init__(self, logger: Logger, config: Config, access_token: str, channel_secret: str) -> None:
         """
@@ -42,23 +29,30 @@ class LineNotification(NotificationClient):
         """
         self.logger = logger
         self.config = config
-                
-        self.app = Flask(__name__)
-
-        self.configuration = Configuration(access_token=access_token)
-        self.configuration = Configuration(channel_secret=channel_secret)
-        self.configuration = Configuration(host = config['host'])
         
-        self._client_ready = False
+        line_host = config['host']
+
+        for channel_id in self.config['channels']:
+            # TODO: check channel status
+            self.notification_channels.append(channel_id)
+
+        self.api = LineBotApi(access_token)
+       
 
     async def run(self) -> None:
         """
         The entrypoint for the notification client.
-        """
-        self.logger.info("Starting linebot Notification Client...")
-        pass # no need to run the event loop
+        """        
+        self.logger.info(
+            "LINE Bot is ready.\n"
+            # "-------------------------\n"
+            # f"Logged in as: {self.user.name}#{self.user.discriminator} ({self.user.id})\n"  # type: ignore
+            # f" API Latency: {self.latency * 1000:.2f} ms\n"
+            # f"Guilds Count: {len(self.guilds)}\n"
+            # "-------------------------"
+        )
 
-    async def send_eew(self, eew: EEW):
+    async def send_eew(self, eew: EEW) -> None:
         """
         If an new EEW is detected, this method will be called.
 
@@ -67,20 +61,16 @@ class LineNotification(NotificationClient):
         :param eew: The EEW.
         :type eew: EEW
         """
-        with ApiClient(self.configuration) as api_client:
-            # Create an instance of the API class
-            api_instance = MessagingApi(api_client)
-
-            broadcast_request = BroadcastRequest() # BroadcastRequest | 
-            # x_line_retry_key = str(uuid.uuid4()) # str | Retry key. 
-
-            try:
-                # api_response = api_instance.broadcast(broadcast_request, x_line_retry_key=x_line_retry_key)
-                api_response = api_instance.broadcast(broadcast_request)
-                print("The response of MessagingApi->broadcast:\n")
-                print(api_response)
-            except Exception as e:
-                print("Exception when calling MessagingApi->broadcast: %s\n" % e)
+        self.logger.info
+        if len(self.notification_channels) == 0:
+            self.logger.error(f"No LINE notification channels available")
+            return
+        m = TextSendMessage(text=f"地震警報: {eew.earthquake.magnitude}M")
+        
+        for channel_id in self.notification_channels:
+            self.api.push_message(channel_id, messages=m)
+            self.logger.info(f"Sent EEW alert to {channel_id}")
+    
 
     async def update_eew(self, eew: EEW):
         """
@@ -126,4 +116,4 @@ def register(config: Config, logger: Logger) -> None:
         logger.error(f"{NAMESPACE} LINEBOT_ACCESS_TOKEN or LINEBOT_CHANNEL_SECRET is not set")
         return
 
-    return LineNotification(logger, config)
+    return LineNotification(logger, config, access_token, channel_secret)

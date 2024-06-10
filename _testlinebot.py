@@ -1,26 +1,47 @@
 import os
-from linebot.v3.messaging.configuration import Configuration
-from linebot.v3.messaging import ApiClient
-from linebot.v3.messaging import MessagingApi
-from linebot.v3.messaging import BroadcastRequest
-from linebot.v3.messaging.rest import ApiException
+from flask import Flask, request, abort
+from linebot import LineBotApi, WebhookHandler
+from linebot.models import TextSendMessage, MessageEvent, TextMessage
+from linebot.exceptions import InvalidSignatureError
 
-config = Configuration(
-    host="https://api.line.me",
-)
-config = Configuration(
-    access_token=os.getenv("LINEBOT_ACCESS_TOKEN")
-)
+host="https://api.line.me"
+access_token=os.getenv("LINEBOT_ACCESS_TOKEN")
 
-with ApiClient(config) as client:
-    api = MessagingApi(client)
-    broadcast_request = BroadcastRequest()
+linebot_api = LineBotApi(access_token)
+handler = WebhookHandler(os.getenv("LINEBOT_CHANNEL_SECRET"))
 
-    try:   
-        # api_response = api.broadcast(broadcast_request)
-        api_response = api.broadcast("broadcast_request")
+groupid ={
+    "bot": "Cf7c26d34ee6c4b6680923b2652617d47",
+}
 
-        print("The response of MessagingApi->broadcast:\n")
-        print(api_response)
-    except Exception as e:
-        print("Exception when calling MessagingApi->broadcast: %s\n" % e)
+message = TextSendMessage(text="搖哦")
+linebot_api.push_message(groupid['bot'],messages=message)
+
+app = Flask(__name__)
+
+# @app.route("/", methods=["POST"])
+# def callback():
+#     signature = request.headers["X-Line-Signature"]
+#     body = request.get_data(as_text=True)
+#     app.logger.info(f"Request body: {body}")
+#     try:
+#         handler.handle(body, signature)
+#     except InvalidSignatureError:
+#         abort(400)
+#     return "OK"
+
+# @handler.add(MessageEvent, message=TextMessage)
+# def handle_message(event):
+#     group_id = event.source.group_id
+#     user_id = event.source.user_id
+#     print(f"群組 ID: {group_id}")
+#     print(f"使用者 ID: {user_id}")
+
+#     # 回應訊息
+#     linebot_api.reply_message(
+#         event.reply_token,
+#         TextSendMessage(text=f"群組 ID 是: {group_id}")
+#     )
+
+# if __name__ == "__main__":
+#     app.run()

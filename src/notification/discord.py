@@ -341,7 +341,7 @@ class DiscordNotification(NotificationClient, discord.Bot):
 
     async def send_eew(self, eew: EEW) -> Optional[EEWMessages]:
         if len(self.notification_channels) == 0:
-            self.logger.warning("No notification channel available.")
+            self.logger.warning("No Discord notification channel available.")
             return None
 
         m = await EEWMessages.send(self, eew, self.notification_channels)
