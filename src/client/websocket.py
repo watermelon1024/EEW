@@ -169,7 +169,8 @@ class WebsocketClient(EEWClient):
         :raise AuthorizationFailed: If the API key is invalid.
         :raise WebSocketReconnect: If the API key is already in used.
         """
-        async for msg in self.ws:
+        while True:
+            msg = await self.ws.receive()
             self.logger.debug(f"Received message: {msg.data}")
             if msg.type is WSMsgType.TEXT:
                 data = json.loads(msg.data)
