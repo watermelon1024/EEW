@@ -29,7 +29,7 @@ def main():
 
         logger.info("API_KEY found, using WebSocket Client")
         ws_config = WebSocketConnectionConfig(
-            key=key, service=[SupportedService.Eew, SupportedService.TremEew]
+            key=key, service=[SupportedService.EEW, SupportedService.TREM_EEW]
         )
         client = WebsocketClient(config=config, logger=logger, websocket_config=ws_config)
     else:
