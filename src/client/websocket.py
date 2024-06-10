@@ -303,12 +303,14 @@ class WebsocketClient(EEWClient):
             else:
                 await self._emit(WebSocketEvent.Info, data)
         elif event_type == "data":
-            data = data.get("data", {})
-            data_type = data.get("type")
+            time = data.get("time")
+            data_ = data.get("data", {})
+            data_["time"] = time
+            data_type = data_.get("type")
             if data_type:
-                await self._emit(WebSocketEvent(data_type), data)
         elif event_type == WebSocketEvent.Ntp.value:
             await self._emit(WebSocketEvent.Ntp, data)
+                await self._emit(WebSocketEvent(data_type), data_)
 
     async def _emit(self, event: WebSocketEvent, *args):
         for handler in self.event_handlers[event]:
