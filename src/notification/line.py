@@ -1,6 +1,7 @@
 import os, uuid
 from ..config import Config
 from ..earthquake.eew import EEW
+import datetime
 from ..logging import Logger
 from .abc import NotificationClient
 from flask import Flask
@@ -30,8 +31,6 @@ class LineNotification(NotificationClient):
         self.logger = logger
         self.config = config
         
-        line_host = config['host']
-
         for channel_id in self.config['channels']:
             # TODO: check channel status
             self.notification_channels.append(channel_id)
@@ -61,12 +60,14 @@ class LineNotification(NotificationClient):
         :param eew: The EEW.
         :type eew: EEW
         """
-        self.logger.info
         if len(self.notification_channels) == 0:
             self.logger.error(f"No LINE notification channels available")
             return
-        m = TextSendMessage(text=f"地震警報: {eew.earthquake.magnitude}M")
-        
+        eq = eew.earthquake
+        text = f"{eq.time.strftime('%H:%M:%S')} 於 {eq.location.display_name or eq.location} 發生規模 {eq.mag} 有感地震，慎防搖晃！"
+        m = TextSendMessage(text=text)
+
+        self.logger.info(text)
         for channel_id in self.notification_channels:
             self.api.push_message(channel_id, messages=m)
             self.logger.info(f"Sent EEW alert to {channel_id}")
