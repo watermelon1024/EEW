@@ -1,17 +1,21 @@
-import os, uuid
+import asyncio
+import os
+
+from linebot import LineBotApi
+from linebot.models import TextSendMessage
+
 from ..config import Config
 from ..earthquake.eew import EEW
 import datetime
 from ..logging import Logger
 from .abc import NotificationClient
-from flask import Flask
-from linebot import LineBotApi
-from linebot.models import TextSendMessage
+
 
 class LineNotification(NotificationClient):
     """
     Represents a linebot EEW notification client.
     """
+
     alerts: dict[str, str] = {}
     notification_channels: list[str] = []
 
@@ -36,20 +40,12 @@ class LineNotification(NotificationClient):
             self.notification_channels.append(channel_id)
 
         self.api = LineBotApi(access_token)
-       
 
     async def run(self) -> None:
         """
         The entrypoint for the notification client.
-        """        
-        self.logger.info(
-            "LINE Bot is ready.\n"
-            # "-------------------------\n"
-            # f"Logged in as: {self.user.name}#{self.user.discriminator} ({self.user.id})\n"  # type: ignore
-            # f" API Latency: {self.latency * 1000:.2f} ms\n"
-            # f"Guilds Count: {len(self.guilds)}\n"
-            # "-------------------------"
-        )
+        """
+        self.logger.info("LINE Bot is ready")
 
     async def send_eew(self, eew: EEW) -> None:
         """
@@ -61,7 +57,7 @@ class LineNotification(NotificationClient):
         :type eew: EEW
         """
         if len(self.notification_channels) == 0:
-            self.logger.error(f"No LINE notification channels available")
+            self.logger.error("No LINE notification channels available")
             return
         eq = eew.earthquake
         text = f"{eq.time.strftime('%H:%M:%S')} 於 {eq.location.display_name or eq.location} 發生規模 {eq.mag} 有感地震，慎防搖晃！"
@@ -69,9 +65,12 @@ class LineNotification(NotificationClient):
 
         self.logger.info(text)
         for channel_id in self.notification_channels:
-            self.api.push_message(channel_id, messages=m)
-            self.logger.info(f"Sent EEW alert to {channel_id}")
-    
+            try:
+                self.api.push_message(channel_id, messages=m)
+            except Exception as e:
+                self.logger.error(f"Failed to send EEW alert to {channel_id}: {e}")
+            else:
+                self.logger.info(f"Sent EEW alert to {channel_id}")
 
     async def update_eew(self, eew: EEW):
         """
@@ -82,7 +81,7 @@ class LineNotification(NotificationClient):
         :param eew: The updated EEW.
         :type eew: EEW
         """
-        ...
+        pass
 
     async def lift_eew(self, eew: EEW):
         """
@@ -93,7 +92,7 @@ class LineNotification(NotificationClient):
         :param eew: The lifted EEW.
         :type eew: EEW
         """
-        ...
+        pass
 
 
 NAMESPACE = "line-bot"
