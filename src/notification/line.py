@@ -60,10 +60,8 @@ class LineNotification(NotificationClient):
             self.logger.error("No LINE notification channels available")
             return
         eq = eew.earthquake
-        text = f"{eq.time.strftime('%H:%M:%S')} 於 {eq.location.display_name or eq.location} 發生規模 {eq.mag} 有感地震，慎防搖晃！"
+        text = f"地震警報：\n{eq.time.strftime('%H:%M:%S')} 於 {eq.location.display_name or eq.location} 發生規模 {eq.mag} 有感地震，慎防搖晃！"
         m = TextSendMessage(text=text)
-
-        self.logger.info(text)
         for channel_id in self.notification_channels:
             try:
                 self.api.push_message(channel_id, messages=m)
