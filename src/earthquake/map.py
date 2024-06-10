@@ -128,9 +128,9 @@ class Map:
 
     def draw_wave(self, time: float, waves: str = "all"):
         """
-        Draw the P and S wave of the earthquake if possible.
+        Draw the P and S wave if possible.
 
-        :param time: time of the earthquake
+        :param time: the travel time in seconds of the wave to draw
         :type time: float
         :param waves: type of the wave to draw, can be `P`, `S` or `all` (case-insensitive), defaults to `all`
         :type waves: str

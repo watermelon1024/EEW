@@ -2,10 +2,10 @@
 The template for a notification client.
 """
 
-from ..config import Config
-from ..earthquake.eew import EEW
-from ..logging import Logger
-from .abc import NotificationClient
+from ...config import Config
+from ...earthquake.eew import EEW
+from ...logging import Logger
+from ..base import NotificationClient
 
 
 class CustomNotificationClient(NotificationClient):

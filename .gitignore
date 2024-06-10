@@ -239,3 +239,8 @@ config.toml
 
 # database files
 storage/
+
+# log files
+logs/
+*.log
+*.log.gz

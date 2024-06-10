@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from ..config import Config
 from ..earthquake.location import RegionLocation
 from ..logging import Logger
-from ..notification.abc import NotificationClient
+from ..notification.base import NotificationClient
 from ..utils import MISSING
 
 
@@ -45,7 +45,12 @@ class EEWClient(ABC):
         """
         self.__event_loop = asyncio.get_event_loop()
         for client in self._notification_client:
-            self.__event_loop.create_task(client.run())
+            try:
+                self.__event_loop.create_task(client.run())
+            except Exception as e:
+                self.logger.error(
+                    f"Failed to run notification client: {client.__class__.__name__}", exc_info=e
+                )
 
     @abstractmethod
     def run(self):

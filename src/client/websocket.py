@@ -16,39 +16,46 @@ DOMAIN = "exptech.dev"
 
 
 class AuthorizationFailed(Exception):
-    """
-    Represents an authorization failure.
-    """
+    """Represents an authorization failure."""
+
+
+class WebSocketReconnect(Exception):
+    """Represents a websocket reconnect signal"""
+
+    def __init__(self, reason: Any = None, *args: object) -> None:
+        super().__init__(*args)
+        self.reason = reason
+        "The reason to reconnect the websocket"
 
 
 class WebSocketEvent(Enum):
-    Eew = "eew"
-    Info = "info"
-    Ntp = "ntp"
-    Report = "report"
-    Rts = "rts"
-    Rtw = "rtw"
-    Verify = "verify"
-    Close = "close"
-    Error = "error"
+    EEW = "eew"
+    INFO = "info"
+    NTP = "ntp"
+    REPORT = "report"
+    RTS = "rts"
+    RTW = "rtw"
+    VERIFY = "verify"
+    CLOSE = "close"
+    ERROR = "error"
 
 
 class SupportedService(Enum):
-    RealtimeStation = "trem.rts"
+    REALTIME_STATION = "trem.rts"
     "即時地動資料"
-    RealtimeWave = "trem.rtw"
+    REALTIME_WAVE = "trem.rtw"
     "即時地動波形圖資料"
-    Eew = "websocket.eew"
+    EEW = "websocket.eew"
     "地震速報資料"
-    TremEew = "trem.eew"
+    TREM_EEW = "trem.eew"
     "TREM 地震速報資料"
-    Report = "websocket.report"
+    REPORT = "websocket.report"
     "中央氣象署地震報告資料"
-    Tsunami = "websocket.tsunami"
+    TSUNAMI = "websocket.tsunami"
     "中央氣象署海嘯資訊資料"
-    CwaIntensity = "cwa.intensity"
+    CWA_INTENSITY = "cwa.intensity"
     "中央氣象署震度速報資料"
-    TremIntensity = "trem.intensity"
+    TREM_INTENSITY = "trem.intensity"
     "TREM 震度速報資料"
 
 
@@ -88,10 +95,14 @@ class WebsocketClient(EEWClient):
     _alerts: dict[str, EEW] = {}
     __event_loop: Optional[asyncio.AbstractEventLoop] = MISSING
     __task: Optional[asyncio.Task] = MISSING
+    __session: Optional[aiohttp.ClientSession] = MISSING
     ws: Optional[ClientWebSocketResponse] = MISSING
+    subscribed_services: list[SupportedService | str] = []
     event_handlers = defaultdict(list)
+    __ready = False
     _reconnect = True
-    _connect_retry_delay = 0
+    _reconnect_delay = 0
+    __closed = False
 
     def __init__(self, *args, websocket_config: WebSocketConnectionConfig, **kwargs):
         super().__init__(*args, **kwargs)
@@ -149,75 +160,156 @@ class WebsocketClient(EEWClient):
         await asyncio.gather(*(c.lift_eew(eew) for c in self._notification_client), return_exceptions=True)
 
     def get_websocket_route(self) -> str:
-        return f"wss://lb-{random.randint(1,4)}.{DOMAIN}/websocket"
+        return f"wss://lb-{random.randint(1, 4)}.{DOMAIN}/websocket"
 
-    async def verify(self):
-        """Send the verify data"""
-        await self.ws.send_json(self.websocket_config.to_dict())
+    async def __wait_for_verify(self):
+        """
+        Return websocket message data if verify successfully
 
-    def recreate(self):
-        """Recreate the WebSocket connection"""
-        self._reconnect = True
-        if not self.__task:
-            self.__task = self.__event_loop.create_task(self._loop())
-        return self.__task
+        :raise AuthorizationFailed: If the API key is invalid.
+        :raise WebSocketReconnect: If the API key is already in used.
+        """
+        while True:
+            msg = await self.ws.receive()
+            self.logger.debug(f"Received message: {msg.data}")
+            if msg.type is WSMsgType.TEXT:
+                data = json.loads(msg.data)
+                if data.get("type") == WebSocketEvent.INFO.value:
+                    data = data["data"]
+                    message = data.get("message")
+                    code = data.get("code")
+                    if code == 200:
+                        # subscribe successfully
+                        return data
+                    elif code == 400:
+                        # api key in used
+                        raise WebSocketReconnect("API key is already in used")
+                    elif code == 401:
+                        # no api key or invalid api key
+                        raise AuthorizationFailed(message)
+                    elif code == 403:
+                        # vip expired
+                        raise AuthorizationFailed(message)
+                    elif code == 429:
+                        raise WebSocketReconnect("Rate limit exceeded")
+
+    async def _send_verify(self, config: dict):
+        self.logger.debug(f"Sending config: {config}")
+        await self.ws.send_json(config)
+        try:
+            data = await asyncio.wait_for(self.__wait_for_verify(), timeout=60)
+            self.subscribed_services = data["list"]
+            return data
+        except TimeoutError as e:
+            raise WebSocketReconnect("Verification timeout") from e
+
+    async def verify_only(self):
+        """
+        Re-verify the API KEY (but not send subscribe).
+
+        :raise AuthorizationFailed: If the API key is invalid.
+        :raise WebSocketReconnect: If the API key is already in used.
+        :raise TimeoutError: If the verification times out.
+        """
+        await self._send_verify(
+            {
+                "type": "start",
+                "key": self.websocket_config.key,
+                "service": [],
+                "config": None,
+            }
+        )
+
+    async def verify_and_subscribe(self):
+        """
+        Verify the API KEY and subscribe the services.
+
+        :raise AuthorizationFailed: If the API key is invalid.
+        :raise WebSocketReconnect: If the API key is already in used.
+        :raise TimeoutError: If the verification times out.
+        """
+        await self._send_verify(self.websocket_config.to_dict())
+
+    async def connect(self):
+        """Connect to the WebSocket"""
+        if not self.__session:
+            self.__session = aiohttp.ClientSession()
+
+        in_reconnect = False
+        while not self.__closed:
+            try:
+                if not self.ws or self.ws.closed:
+                    self.ws = await self.__session.ws_connect(self.get_websocket_route())
+                # send identify
+                await self.verify_and_subscribe()
+                if not in_reconnect or not self.__ready:
+                    self.logger.info(
+                        "EEW WebSocket is ready\n"
+                        "--------------------------------------------------\n"
+                        f"Subscribed services: {', '.join(self.subscribed_services)}\n"
+                        "--------------------------------------------------"
+                    )
+                else:
+                    self.logger.info(
+                        "EEW WebSocket successfully reconnect\n"
+                        "--------------------------------------------------\n"
+                        f"Subscribed services: {', '.join(self.subscribed_services)}\n"
+                        "--------------------------------------------------"
+                    )
+                self.__ready = True
+                in_reconnect = False
+                self._reconnect_delay = 0
+                await self._loop()
+            except AuthorizationFailed:
+                await self.close()
+                raise
+            except WebSocketReconnect as e:
+                await self.ws.close()
+                in_reconnect = True
+                self._reconnect_delay += 10
+                self.logger.info(f"{e.reason}, reconnecting in {self._reconnect_delay} seconds...")
+                await asyncio.sleep(self._reconnect_delay)
+            except Exception as e:
+                self.logger.exception("An error occurred, reconnecting...", exc_info=e)
 
     async def _loop(self):
-        while self._reconnect:
-            try:
-                if self.ws and not self.ws.closed:
-                    await self.ws.close()
-
-                async with aiohttp.ClientSession() as session, session.ws_connect(
-                    self.get_websocket_route()
-                ) as ws:
-                    self.ws = ws
-                    await self.verify()
-
-                    async for msg in ws:
-                        self.logger.debug(f"WebSocket received message: {msg}")
-                        if msg.type == WSMsgType.TEXT:
-                            await self._handle_message(msg.data)
-                        elif msg.type == aiohttp.WSMsgType.CLOSED:
-                            break
-                        elif msg.type == WSMsgType.ERROR:
-                            await self._emit(WebSocketEvent.Error, ws.exception())
-            except AuthorizationFailed:
-                raise
-            except aiohttp.ClientConnectorError as e:
-                self.logger.exception("Connection failed, retrying...", exc_info=e)
-            except Exception as e:
-                self.logger.exception("Unexpected error", exc_info=e)
-            # retry in 5 seconds
-            await asyncio.sleep(5)
+        async for msg in self.ws:
+            self.logger.debug(f"WebSocket received message: {msg}")
+            if msg.type is WSMsgType.TEXT:
+                await self._handle_message(msg.data)
+            elif msg.type is aiohttp.WSMsgType.CLOSED:
+                if self._reconnect:
+                    raise WebSocketReconnect("WebSocket closed by server")
+                return
+            elif msg.type is WSMsgType.ERROR:
+                await self._emit(WebSocketEvent.ERROR, self.ws.exception())
 
     async def _handle_message(self, raw: str):
-        try:
-            data = json.loads(raw)
-            if data:
-                await self._dispatch_event(data)
-        except Exception as error:
-            await self._emit(WebSocketEvent.Error, error)
+        data = json.loads(raw)
+        if data:
+            await self._dispatch_event(data)
 
     async def _dispatch_event(self, data: dict[str, Any]):
         event_type = data.get("type")
-        if event_type == WebSocketEvent.Verify.value:
-            await self.verify()
-        elif event_type == WebSocketEvent.Info.value:
+        if event_type == WebSocketEvent.VERIFY.value:
+            await self.verify_only()
+        elif event_type == WebSocketEvent.INFO.value:
             data = data.get("data", {})
             code = data.get("code")
             if code == 503:
                 await asyncio.sleep(5)
-                await self.verify()
+                await self.verify_only()
             else:
-                await self._emit(WebSocketEvent.Info, data)
+                await self._emit(WebSocketEvent.INFO, data)
         elif event_type == "data":
-            data = data.get("data", {})
-            data_type = data.get("type")
+            time = data.get("time")
+            data_ = data.get("data", {})
+            data_["time"] = time
+            data_type = data_.get("type")
             if data_type:
-                await self._emit(WebSocketEvent(data_type), data)
-        elif event_type == WebSocketEvent.Ntp.value:
-            await self._emit(WebSocketEvent.Ntp, data)
+                await self._emit(WebSocketEvent(data_type), data_)
+        elif event_type == WebSocketEvent.NTP.value:
+            await self._emit(WebSocketEvent.NTP, data)
 
     async def _emit(self, event: WebSocketEvent, *args):
         for handler in self.event_handlers[event]:
@@ -227,49 +319,26 @@ class WebsocketClient(EEWClient):
         self.event_handlers[event].append(listener)
         return self
 
-    async def on_info(self, data: dict):
-        message = data.get("message")
-        code = data.get("code")
-        if code == 401:
-            self.logger.error("Invaild authentication key.")
-            self.close()
-            raise AuthorizationFailed("Invaild authentication key.")
-        elif "already in used" in message:
-            self._connect_retry_delay += 30
-            self.logger.error(
-                f"Authentication key is already in used, reconnect in {self._connect_retry_delay} seconds..."
-            )
-            await self.close()
-            await asyncio.sleep(self._connect_retry_delay)
-            self.recreate()
-        elif "Subscripted service" in message:
-            self.logger.info(
-                "EEW WebSocket is ready\n"
-                "-------------------------\n"
-                f"Subscripted services: {''.join(data['list'])}\n"
-                "-------------------------"
-            )
-
     async def on_eew(self, data: dict):
-        _check_finished_alerts = set(self._alerts.keys())
-        id = data["id"]
-        _check_finished_alerts.discard(id)
-        eew = self._alerts.get(id)
+        if data["author"] != "cwa":
+            # only receive caw's eew
+            return
+        eew = self._alerts.get(data["id"])
         if eew is None:
             await self.new_alert(data)
-        elif eew.serial != data["serial"]:
+        else:
             await self.update_alert(data)
 
-        # remove finished alerts
-        for id in _check_finished_alerts:
-            eew = self._alerts.pop(id, None)
-            if eew is not None:
-                await self.lift_alert(eew)
-
     async def close(self):
+        """Close the websocket"""
         self._reconnect = False
+        self.__closed = True
         if self.ws:
             await self.ws.close()
+
+    def closed(self):
+        """Whether the websocket is closed"""
+        return self.__closed
 
     async def start(self):
         """
@@ -277,10 +346,9 @@ class WebsocketClient(EEWClient):
         Note: This coro won't finish forever until user interrupt it.
         """
         self.logger.info("Starting EEW WebSocket Client...")
-        self.on(WebSocketEvent.Eew, self.on_eew)
-        self.on(WebSocketEvent.Info, self.on_info)
+        self.on(WebSocketEvent.EEW, self.on_eew)
         self.run_notification_client()
-        await self._loop()
+        await self.connect()
 
     def run(self):
         """
@@ -292,6 +360,7 @@ class WebsocketClient(EEWClient):
         try:
             self.__event_loop.run_forever()
         except KeyboardInterrupt:
+            self.__event_loop.run_until_complete(self.close())
             self.__event_loop.stop()
         finally:
             self.logger.info("EEW WebSocket has been stopped.")

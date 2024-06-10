@@ -1,9 +1,35 @@
 # EEW
- Earthquake Early Warning
 
- [English](https://github.com/watermelon1024/EEW/blob/main/README.md) | [繁體中文](https://github.com/watermelon1024/EEW/blob/main/docs/README/README-zh-TW.md)
+ [![Contributors][contributors-shield]][contributors-url]
+ [![Forks][forks-shield]][forks-url]
+ [![Stargazers][stars-shield]][stars-url]
+ [![Issues][issues-shield]][issues-url]
+ [![License][license-shield]][license-url]
 
- This Project using API provided by [Exptech](https://exptech.com.tw), please follow it's [ToS](https://exptech.com.tw/tos)!
+ [contributors-shield]: https://img.shields.io/github/contributors/watermelon1024/EEW.svg?style=for-the-badge
+ [contributors-url]: https://github.com/watermelon1024/EEW/graphs/contributors
+
+ [forks-shield]: https://img.shields.io/github/forks/watermelon1024/EEW.svg?style=for-the-badge
+ [forks-url]: https://github.com/watermelon1024/EEW/network/members
+
+ [stars-shield]: https://img.shields.io/github/stars/watermelon1024/EEW.svg?style=for-the-badge
+ [stars-url]: https://github.com/watermelon1024/EEW/stargazers
+
+ [issues-shield]: https://img.shields.io/github/issues/watermelon1024/EEW.svg?style=for-the-badge
+ [issues-url]: https://github.com/watermelon1024/EEW/issues
+
+ [license-shield]: https://img.shields.io/github/license/watermelon1024/EEW.svg?style=for-the-badge
+ [license-url]: https://github.com/watermelon1024/EEW/blob/main/LICENSE
+
+ [>English<](https://github.com/watermelon1024/EEW/blob/main/README.md) | [繁體中文](https://github.com/watermelon1024/EEW/blob/main/docs/README/README-zh-TW.md)
+
+ ---
+
+ A simple, powerful, free, and easily extensible earthquake early warning notify system.
+
+ ---
+
+ This project uses the API provided by [Exptech](https://exptech.com.tw). Please adhere to their [Terms of Service](https://exptech.com.tw/tos).
 
  *Note: This project is currently a beta version.*
 
