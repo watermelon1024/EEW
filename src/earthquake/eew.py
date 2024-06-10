@@ -179,11 +179,15 @@ class EarthquakeData:
         intensities = calculate_expected_intensity_and_travel_time(self, regions)
         self._expected_intensity = dict(intensities)
         self._city_max_intensity = {
-            city: max(
-                (self._expected_intensity[region.code] for region in regions),
-                key=lambda x: x.intensity._float_value,
-            )
+            city: max(city_intensities, key=lambda x: x.intensity._float_value)
             for city, regions in REGIONS_GROUP_BY_CITY.items()
+            if (
+                city_intensities := [
+                    intensity
+                    for region in regions
+                    if (intensity := self._expected_intensity.get(region.code))
+                ]
+            )
         }
         return self._expected_intensity
 
