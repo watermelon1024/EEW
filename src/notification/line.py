@@ -1,4 +1,3 @@
-import asyncio
 import os
 
 from linebot import LineBotApi
@@ -6,9 +5,8 @@ from linebot.models import TextSendMessage
 
 from ..config import Config
 from ..earthquake.eew import EEW
-import datetime
 from ..logging import Logger
-from .abc import NotificationClient
+from .base import NotificationClient
 
 
 class LineNotification(NotificationClient):
@@ -34,8 +32,8 @@ class LineNotification(NotificationClient):
         """
         self.logger = logger
         self.config = config
-        
-        for channel_id in self.config['channels']:
+
+        for channel_id in self.config["channels"]:
             # TODO: check channel status
             self.notification_channels.append(channel_id)
 
@@ -60,7 +58,7 @@ class LineNotification(NotificationClient):
             self.logger.error("No LINE notification channels available")
             return
         eq = eew.earthquake
-        text = f"地震警報：\n{eq.time.strftime('%H:%M:%S')} 於 {eq.location.display_name or eq.location} 發生規模 {eq.mag} 有感地震，慎防搖晃！"
+        text = f"地震速報（第 {eew.serial} 報）：\n{eq.time.strftime('%H:%M:%S')} 於 {eq.location.display_name or eq.location} 發生規模 M{eq.mag} 有感地震，震源深度 {eq.depth}km，慎防搖晃！"
         m = TextSendMessage(text=text)
         for channel_id in self.notification_channels:
             try:
@@ -79,7 +77,19 @@ class LineNotification(NotificationClient):
         :param eew: The updated EEW.
         :type eew: EEW
         """
-        pass
+        if len(self.notification_channels) == 0:
+            self.logger.error("No LINE notification channels available")
+            return
+        eq = eew.earthquake
+        text = f"地震速報（已更新，第 {eew.serial} 報）：\n{eq.time.strftime('%H:%M:%S')} 於 {eq.location.display_name or eq.location} 發生規模 M{eq.mag} 有感地震，震源深度 {eq.depth}km，慎防搖晃！"
+        m = TextSendMessage(text=text)
+        for channel_id in self.notification_channels:
+            try:
+                self.api.push_message(channel_id, messages=m)
+            except Exception as e:
+                self.logger.error(f"Failed to send EEW alert update to {channel_id}: {e}")
+            else:
+                self.logger.info(f"Sent EEW alert update to {channel_id}")
 
     async def lift_eew(self, eew: EEW):
         """
