@@ -9,6 +9,12 @@ channels = [
     { id = 987654321 }, # no mention
 ]
 
+[line-bot]
+channels = [
+    "abcdefgh...",
+    "ijklmnop...",
+]  # user or group IDs
+
 [log]
 # days of logs to keep
 retention = 30
