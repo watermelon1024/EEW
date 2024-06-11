@@ -1,4 +1,5 @@
 import json
+from typing import Union
 
 import geopandas as gpd
 
@@ -174,7 +175,9 @@ class RegionLocation(Location):
         return f"RegionLocation({self._name} at ({self._longitude}, {self._latitude})"
 
 
-def _parse_region_dict(data: dict[str, dict[str, dict[str, int | float | str]]]) -> dict[int, RegionLocation]:
+def _parse_region_dict(
+    data: dict[str, dict[str, dict[str, Union[int, float, str]]]]
+) -> dict[int, RegionLocation]:
     all_regions = {}
     for city, regions in data.items():
         for name, d in regions.items():
