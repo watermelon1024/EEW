@@ -19,7 +19,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 FROM base
 COPY --from=builder /usr/local/lib/python3.12 /usr/local/lib/python3.12
-RUN apk add --no-cache openssl-dev sed grep gdal-dev && pip install --no-cache-dir geos proj==0.2.0
+RUN apk add --no-cache openssl-dev gdal-dev && pip install --no-cache-dir geos proj==0.2.0
 ENV PROJ_DATA=/usr/share/proj
 WORKDIR /EEW
 COPY . /EEW
