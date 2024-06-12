@@ -29,9 +29,9 @@
 
  ---
 
- 此專案使用由 [Exptech](https://exptech.com.tw) 提供的 API，請遵照其[服務條款](https://exptech.com.tw/tos)。
+ 此專案使用由[ExpTech 探索科技](https://exptech.com.tw) 提供的 API，請遵照其[服務條款](https://exptech.com.tw/tos)。
 
- *注意： 此專案目前仍處於測試版本。*
+ *注意：此專案目前仍處於測試版本。*
 
 # 安裝
  **需要 Python 3.8 或更高的版本**
