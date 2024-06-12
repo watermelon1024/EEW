@@ -29,7 +29,7 @@
 
  ---
 
- This project uses the API provided by [Exptech](https://exptech.com.tw). Please adhere to their [Terms of Service](https://exptech.com.tw/tos).
+ This project uses the API provided by [ExpTech](https://exptech.com.tw). Please adhere to their [Terms of Service](https://exptech.com.tw/tos).
 
  *Note: This project is currently a beta version.*
 
