@@ -1,3 +1,4 @@
+import asyncio
 import os
 
 import aiohttp
@@ -40,7 +41,7 @@ class LineNotification(NotificationClient):
             # TODO: check channel status
             self.notification_channels.append(channel_id)
 
-    def _message_data(self, eew: EEW):
+    def _flex_message(self, eew: EEW):
         eq = eew.earthquake
         time_str = eq.time.strftime("%H:%M:%S")
         summary = f"地震速報：{time_str}於{eq.location.display_name or eq.location}發生規模 M{eq.mag} 地震"
@@ -144,6 +145,18 @@ class LineNotification(NotificationClient):
             }
         ]
 
+    async def _send_message(self, session: aiohttp.ClientSession, channel_id: str, message: dict) -> None:
+        try:
+            async with session.post(
+                f"{LINE_API_NODE}/bot/message/push", json={"to": channel_id, "messages": message}
+            ) as response:
+                if not response.ok:
+                    raise aiohttp.ClientResponseError(
+                        response.request_info, status=response.status, message=await response.text()
+                    )
+        except Exception as e:
+            self.logger.exception(f"Failed to send message alert to {channel_id}", exc_info=e)
+
     async def send_eew(self, eew: EEW) -> None:
         """
         If an new EEW is detected, this method will be called.
@@ -158,19 +171,11 @@ class LineNotification(NotificationClient):
             return
 
         headers = {"Content-Type": "application/json", "Authorization": f"Bearer {self.__access_token}"}
+        msg = self._flex_message(eew)
         async with aiohttp.ClientSession(headers=headers) as session:
-            for channel_id in self.notification_channels:
-                data = {"to": channel_id, "messages": self._message_data(eew)}
-                try:
-                    async with session.post(f"{LINE_API_NODE}/bot/message/push", json=data) as response:
-                        if response.ok:
-                            self.logger.info(f"Sent EEW alert to {channel_id}")
-                        else:
-                            self.logger.error(
-                                f"Failed to send EEW alert to {channel_id}: {await response.text()}"
-                            )
-                except Exception as e:
-                    self.logger.exception(f"Failed to send EEW alert to {channel_id}", exc_info=e)
+            await asyncio.gather(
+                *(self._send_message(session, channel_id, msg) for channel_id in self.notification_channels)
+            )
 
     async def update_eew(self, eew: EEW):
         """
@@ -186,19 +191,11 @@ class LineNotification(NotificationClient):
             return
 
         headers = {"Content-Type": "application/json", "Authorization": f"Bearer {self.__access_token}"}
+        msg = self._flex_message(eew)
         async with aiohttp.ClientSession(headers=headers) as session:
-            for channel_id in self.notification_channels:
-                data = {"to": channel_id, "messages": self._message_data(eew)}
-                try:
-                    async with session.post(f"{LINE_API_NODE}/bot/message/push", json=data) as response:
-                        if response.ok:
-                            self.logger.info(f"Update EEW alert to {channel_id}")
-                        else:
-                            self.logger.error(
-                                f"Failed to update EEW alert to {channel_id}: {await response.text()}"
-                            )
-                except Exception as e:
-                    self.logger.exception(f"Failed to update EEW alert to {channel_id}", exc_info=e)
+            await asyncio.gather(
+                *(self._send_message(session, channel_id, msg) for channel_id in self.notification_channels)
+            )
 
     async def lift_eew(self, eew: EEW):
         """
