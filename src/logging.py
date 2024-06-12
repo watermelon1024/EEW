@@ -2,6 +2,7 @@ import inspect
 import logging
 import sys
 from datetime import timedelta
+from typing import Union
 
 from loguru._logger import Core, Logger, _defaults
 
@@ -67,7 +68,7 @@ class InterceptHandler(logging.Handler):
 
     def emit(self, record: logging.LogRecord) -> None:
         # Get corresponding Loguru level if it exists.
-        level: str | int
+        level: Union[str, int]
         try:
             level = self.logger.level(record.levelname).name
         except ValueError:

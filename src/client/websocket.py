@@ -3,7 +3,7 @@ import json
 import random
 from collections import defaultdict
 from enum import Enum
-from typing import Any, Optional
+from typing import Any, Optional, Union
 
 import aiohttp
 from aiohttp import ClientWebSocketResponse, WSMsgType
@@ -97,7 +97,7 @@ class WebsocketClient(EEWClient):
     __task: Optional[asyncio.Task] = MISSING
     __session: Optional[aiohttp.ClientSession] = MISSING
     ws: Optional[ClientWebSocketResponse] = MISSING
-    subscribed_services: list[SupportedService | str] = []
+    subscribed_services: list[Union[SupportedService, str]] = []
     event_handlers = defaultdict(list)
     __ready = False
     _reconnect = True
