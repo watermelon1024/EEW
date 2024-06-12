@@ -4,3 +4,4 @@ doc/
 LICENSE
 README.md
 Dockerfile
+*.dockerignore
