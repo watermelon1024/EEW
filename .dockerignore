@@ -1,7 +1,5 @@
-doc/
-.gitattributes
-.gitignore
-LICENSE
-README.md
+docs/
 Dockerfile
-*.dockerignore
+config.toml
+.*
+!.env.example
