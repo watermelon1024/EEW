@@ -1,0 +1,5 @@
+docs/
+Dockerfile
+config.toml
+.*
+!.env.example
