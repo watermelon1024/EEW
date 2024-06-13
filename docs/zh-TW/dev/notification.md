@@ -8,7 +8,7 @@
 
 ## 開發客戶端功能
   實作客戶端的相關函式：\
-  (注意：下方範例皆是宣告於 class 中的函式，故第一個傳入參數為 `self`)
+  (注意：下方範例皆是宣告於 class 中的函式，故第一個傳入參數皆為`self`)
   - `send_eew`：發送速報消息，主程式收到新速報時，會呼叫該函式並傳入速報資料
     ```py
     async def send_eew(self, eew: EEW):
@@ -19,7 +19,7 @@
     async def update_eew(self, eew: EEW):
       print(f"地震速報更新！第{eew.serial}報，預估規模{eew.earthquake.mag}")
     ```
-  - `lift_eew`：解除速報（通常會於速報發送後的4分鐘解除，視API來源），主程式呼叫該函式時會傳入欲解除警報的速報
+  - `lift_eew`：解除速報(通常會於速報發送後的4分鐘解除，視API來源，僅使用HTTP Client時有效)，主程式呼叫該函式時會傳入欲解除警報的速報
     ```py
     async def lift_eew(self, eew: EEW):
       print(f"地震速報{eew.id}解除")

@@ -21,17 +21,17 @@
  [license-shield]: https://img.shields.io/github/license/watermelon1024/EEW.svg?style=for-the-badge
  [license-url]: https://github.com/watermelon1024/EEW/blob/main/LICENSE
 
- [>English<](https://github.com/watermelon1024/EEW/blob/main/README.md) | [繁體中文](https://github.com/watermelon1024/EEW/blob/main/docs/README/README-zh-TW.md)
+ [English](https://github.com/watermelon1024/EEW/blob/main/README.md) | [繁體中文](https://github.com/watermelon1024/EEW/blob/main/docs/zh-TW/README.md)
 
  ---
 
- A simple, powerful, free, and easily extensible earthquake early warning notify system.
+ A simple, powerful, free, and easily extensible earthquake early warning notification system!
 
  ---
 
  This project uses the API provided by [ExpTech](https://exptech.com.tw). Please adhere to their [Terms of Service](https://exptech.com.tw/tos).
 
- *Note: This project is currently a beta version.*
+ *Note: This project is currently in beta.*
 
 # Installing
  **Python 3.8 or higher is required**
@@ -43,7 +43,7 @@
  cd EEW
  ```
 
- ### 2. Use a Virtual Environment (Optional but Recommended)
+ ### 2. Use a Virtual Environment (Optional but Strongly Recommended)
  Before installing the project, it's recommended to use a virtual environment to isolate the project's dependencies and prevent conflicts with dependencies of other projects.
  #### Using Python's Built-in Virtual Environment Module
  ```bash
@@ -55,7 +55,7 @@
 
  virtualenv venv
  ```
- Then, activate the virtual environment
+ Then, activate the virtual environment:
  ```bash
  # Windows
  venv\Scripts\activate
@@ -65,24 +65,52 @@
  ```
 
  ### 3. Set Up Environment Variables
- Rename the `.env.example` file to `.env` and fill in the required values for each environment variable according to your configuration.
+ Edit the `.env` file according to the format in `.env.example` and fill in the required environment variables.\
+ For example:
+ ```toml
+ DISCORD_BOT_TOKEN=  # Discord bot token
 
- `.env.example`:
- ```
- DISCORD_BOT_TOKEN=  # discord bot token
+ LINEBOT_ACCESS_TOKEN=  # Line bot access token
+ LINEBOT_CHANNEL_SECRET=  # Line bot channel secret
  ```
 
  ### 4. Edit the Configuration
- Rename the `config.toml.example` file to `config.toml` and fill in the required values for each configuration according to your demand.
+ Edit the `config.toml` file according to the format in `config.toml.example` and fill in the required values based on your needs.\
+ For example:
+ ```toml
+ # configuration
+ debug-mode = false  # debug mode
+
+ [discord-bot]
+ channels = [
+     { id = 123456789, mention = "everyone" },  # mention everyone (@everyone)
+     { id = 456789123, mention = 6543219870 },  # mention the role with ID `6543219870`
+     { id = 987654321 },  # no mention
+ ]
+
+ [line-bot]
+ channels = [
+     "abcdefgh...",
+     "ijklmnop...",
+ ]  # user or group IDs
+
+ [log]
+ retention = 30  # days of logs to keep
+ format = "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | <level>{level: <8}</level> | <level>{message}</level>"  # log output format
+ ```
 
  ### 5. Install Dependencies
- Install the dependencies required for the project.
+ Install the required dependencies for the project.
  ```bash
  pip install -r requirements.txt
  ```
 
  ### 6. Run the Project
- Once the dependencies are installed and the environment variables are set up, you can run the project!
+ After installing the dependencies and setting the environment variables, you can run the project!
  ```bash
  python main.py
  ```
+
+# Custom Notification Client
+If you haven't found an existing client that suits your needs, you can create a custom notification client for yourself!\
+See the [development documentation](https://github.com/watermelon1024/EEW/blob/main/docs/en-US/dev/notification.md).
