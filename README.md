@@ -23,7 +23,7 @@
 
  <div align="center">
   <a href="https://github.com/watermelon1024/EEW">
-   <img src="/icon.png" alt="EEW" width="30%"/>
+   <img src="/asset/logo.png" alt="EEW" width="30%"/>
   </a>
  </div>
 

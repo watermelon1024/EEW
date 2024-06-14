@@ -30,7 +30,7 @@ INTENSITY_COLOR: dict[int, str] = {
     8: "#7B170F",
     9: "#7237C1",
 }
-legend_img = mpimg.imread("legend.png")
+legend_img = mpimg.imread("asset/map_legend.png")
 legend_offset = OffsetImage(legend_img, zoom=0.5)
 
 

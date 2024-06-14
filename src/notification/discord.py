@@ -92,7 +92,7 @@ class EEWMessages:
             color=0xFF0000,
         ).set_author(
             name="Taiwan Earthquake Early Warning",
-            icon_url="https://raw.githubusercontent.com/watermelon1024/EEW/main/icon.png",
+            icon_url="https://raw.githubusercontent.com/watermelon1024/EEW/main/asset/logo_small.png",
         )
 
         return self._info_embed

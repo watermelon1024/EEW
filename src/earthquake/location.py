@@ -197,11 +197,11 @@ def _group_region_by_city(regions: dict[int, RegionLocation]) -> dict[str, list[
 TAIWAN_CENTER = Location(120.982025, 23.973875)
 "The center of Tawian"
 
-with open("src/asset/region.json", "r", encoding="utf-8") as f:
+with open("asset/region.json", "r", encoding="utf-8") as f:
     REGIONS: dict[int, RegionLocation] = _parse_region_dict(json.load(f))
 REGIONS_GROUP_BY_CITY: dict[str, list[RegionLocation]] = _group_region_by_city(REGIONS)
 
-with open("src/asset/town_map.json", "r", encoding="utf-8") as f:
+with open("asset/town_map.json", "r", encoding="utf-8") as f:
     _raw_geo_data = json.load(f)["features"]
     TOWN_DATA: gpd.GeoDataFrame = gpd.GeoDataFrame.from_features(_raw_geo_data)
     TOWN_RANGE = {
@@ -209,6 +209,6 @@ with open("src/asset/town_map.json", "r", encoding="utf-8") as f:
         for d in _raw_geo_data
         if d["id"].isdigit()
     }
-with open("src/asset/country_map.json", "r", encoding="utf-8") as f:
+with open("asset/country_map.json", "r", encoding="utf-8") as f:
     _raw_geo_data = json.load(f)["features"]
     COUNTRY_DATA: gpd.GeoDataFrame = gpd.GeoDataFrame.from_features(_raw_geo_data)
