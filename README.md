@@ -21,7 +21,13 @@
  [license-shield]: https://img.shields.io/github/license/watermelon1024/EEW.svg?style=for-the-badge
  [license-url]: https://github.com/watermelon1024/EEW/blob/main/LICENSE
 
- [English](https://github.com/watermelon1024/EEW/blob/main/README.md) | [繁體中文](https://github.com/watermelon1024/EEW/blob/main/docs/zh-TW/README.md)
+ <div align="center">
+  <a href="https://github.com/watermelon1024/EEW">
+   <img src="/icon.png" alt="EEW" width="30%"/>
+  </a>
+ </div>
+
+ [English](/README.md) | [繁體中文](/docs/zh-TW/README.md)
 
  ---
 
@@ -113,4 +119,4 @@
 
 # Custom Notification Client
 If you haven't found an existing client that suits your needs, you can create a custom notification client for yourself!\
-See the [development documentation](https://github.com/watermelon1024/EEW/blob/main/docs/en-US/dev/notification.md).
+See the [development documentation](/docs/en-US/dev/notification.md).

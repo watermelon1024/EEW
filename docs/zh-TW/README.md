@@ -21,7 +21,13 @@
  [license-shield]: https://img.shields.io/github/license/watermelon1024/EEW.svg?style=for-the-badge
  [license-url]: https://github.com/watermelon1024/EEW/blob/main/LICENSE
 
- [English](https://github.com/watermelon1024/EEW/blob/main/README.md) | [繁體中文](https://github.com/watermelon1024/EEW/blob/main/docs/zh-TW/README.md)
+ <div align="center">
+  <a href="https://github.com/watermelon1024/EEW">
+   <img src="/icon.png" alt="EEW" width="30%"/>
+  </a>
+ </div>
+
+ [English](/README.md) | [繁體中文](/docs/zh-TW/README.md)
 
  ---
 
@@ -113,7 +119,7 @@
 
 # 自訂通知客戶端
  如果你沒有找到想使用的現成客戶端，你可以為你自己建立客製化的通知客戶端！\
- 請見[開發文檔](https://github.com/watermelon1024/EEW/blob/main/docs/zh-TW/dev/notification.md)。
+ 詳見[開發文檔](/docs/zh-TW/dev/notification.md)。
 
 ## 特別感謝
  [Littlecatowo](https://github.com/Littlecatowo) 協助翻譯
