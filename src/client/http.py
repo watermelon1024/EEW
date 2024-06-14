@@ -132,17 +132,17 @@ class HTTPEEWClient(EEWClient):
         for d in data:
             id = d["id"]
             _check_finished_alerts.discard(id)
-            eew = self._alerts.get(id)
-            if eew is None:
+            cached_eew = self._alerts.get(id)
+            if cached_eew is None:
                 await self.new_alert(d)
-            elif eew.serial != d["serial"]:
+            elif d["serial"] > cached_eew.serial:
                 await self.update_alert(d)
 
         # remove finished alerts
         for id in _check_finished_alerts:
-            eew = self._alerts.pop(id, None)
-            if eew is not None:
-                await self.lift_alert(eew)
+            cached_eew = self._alerts.pop(id, None)
+            if cached_eew is not None:
+                await self.lift_alert(cached_eew)
 
     async def _loop(self):
         self.__event_loop = asyncio.get_event_loop()
