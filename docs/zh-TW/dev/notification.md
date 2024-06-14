@@ -1,10 +1,12 @@
 # 自訂通知客戶端
   你有兩種方式可以製作你自訂客戶端：
   1. 單獨檔案\
-    在`src/notification/`下建立你自己的python檔案(即`src/notification/your_client.py`)，並遵照`src/notification/template/register.py`的格式，撰寫[下方](#開發客戶端功能)內容
+    在`src/notification/`下建立你自己的python檔案(即`src/notification/your_client.py`)，並遵照`src/notification/template/main.py`的格式，撰寫[下方](#開發客戶端功能)內容
 
   2. 包裝成模組(module)\
-    在`src/notification/`下創建一個資料夾，你可以盡情的在裡面寫你的自訂客戶端，內部結構由你自行決定，只需在第一層建立`main.py`檔案(即`src/notification/your_client/main.py`)，並在裡面定義`NAMESPACE`常數和`register`函式即可(見[註冊客戶端](#註冊客戶端))
+    在`src/notification/`下創建一個資料夾，你可以盡情的在裡面寫你的自訂客戶端，內部結構由你自行決定，只需在第一層建立`register.py`檔案(即`src/notification/your_client/register.py`)，並在裡面定義全局常數`NAMESPACE`和`register`函式即可(見[註冊客戶端](#註冊客戶端))
+
+  注意：若有使用到額外的第三方函式庫(package)，請不要將相關的函式庫進行全局導入(將`import`語句放置於開頭或全域空間)，而是於`register`函式內再行導入，以避免在讀取`NAMESPACE`時因無法導入該函式庫而產生錯誤。
 
 ## 開發客戶端功能
   實作客戶端的相關函式：\
