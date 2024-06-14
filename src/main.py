@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 
 from .config import Config
 from .logging import InterceptHandler, Logging
+from .notification.base import NotificationClient
 
 load_dotenv(override=True)
 
@@ -46,24 +47,33 @@ def main():
             module_path = f"src.notification.{module_name}"
         elif path.is_dir():
             module_name = path.name
-            module_path = f"src.notification.{module_name}.main"
+            module_path = f"src.notification.{module_name}.register"
         else:
-            logger.debug(f"Unknown file type: {path.name}, ignoring")
-            continue
+            logger.debug(f"Ignoring importing unknown file type: {path.name}")
         try:
             logger.debug(f"Importing {module_path}...")
             module = importlib.import_module(module_path)
             register_func = getattr(module, "register", None)
             if register_func is None:
-                logger.debug(f"No register function in {module_path}, ignoring")
+                logger.debug(
+                    f"Ignoring registering {module_name}: No register function found in {module_path}"
+                )
                 continue
             namespace = getattr(module, "NAMESPACE", module_name)
             _config = config.get(namespace)
             if _config is None:
-                logger.debug(f"No config '{namespace}' for {module_name}, ignoring")
+                logger.warning(
+                    f"Ignoring registering {module_name}: The expected config namespace '{namespace}' was not found."
+                )
                 continue
-            logger.debug(f"Registering {module_path}")
-            client.add_notification(register_func(_config, logger))
+            logger.debug(f"Registering {module_path}...")
+            notification_client = register_func(_config, logger)
+            if not issubclass(type(notification_client), NotificationClient):
+                logger.debug(
+                    f"Ignoring registering {module_name}: Unsupport return type '{type(notification_client).__name__}'"
+                )
+                continue
+            client.add_notification(notification_client)
             logger.success(f"Registered notification client '{module_name}' successfully")
         except ModuleNotFoundError as e:
             if e.name == module_path:
