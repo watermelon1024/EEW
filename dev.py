@@ -8,26 +8,30 @@ from aiohttp import web
 from src.client.http import API_NODES
 from src.main import main
 
-API_NODES.clear()
-API_NODES.append("http://127.0.0.1:8000")
+DEV_SERVER_HOST = "127.0.0.1"
+DEV_SERVER_PORT = 8000
 
 app = web.Application()
 routes = web.RouteTableDef()
 
 
 def _main_wrapper():
+    global loop
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
+    API_NODES.clear()
+    API_NODES.append(f"{DEV_SERVER_HOST}:{DEV_SERVER_PORT}")
     main()
 
 
-async def background_task(app):
+async def background_task(_):
     thread = threading.Thread(target=_main_wrapper)
     thread.daemon = True
     thread.start()
 
 
 app.on_startup.append(background_task)
+app.on_cleanup.append(lambda _: loop.stop())
 
 content = []
 eq_id = 1130699
@@ -87,4 +91,4 @@ async def post_earthquake(request):
 app.add_routes(routes)
 
 if __name__ == "__main__":
-    web.run_app(app, host="127.0.0.1", port=8000)
+    web.run_app(app, host=DEV_SERVER_HOST, port=DEV_SERVER_PORT)
