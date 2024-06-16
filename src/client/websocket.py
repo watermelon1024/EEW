@@ -188,7 +188,7 @@ class WebsocketClient(EEWClient):
                         # no api key or invalid api key
                         raise AuthorizationFailed(message)
                     elif code == 403:
-                        # vip expired
+                        # vip membership expired
                         raise AuthorizationFailed(message)
                     elif code == 429:
                         raise WebSocketReconnect("Rate limit exceeded")
@@ -198,7 +198,7 @@ class WebsocketClient(EEWClient):
         await self.ws.send_json(config)
         try:
             data = await asyncio.wait_for(self.__wait_for_verify(), timeout=60)
-            self.subscribed_services = data["list"]
+            self.subscribed_services.extend(data["list"])
             return data
         except TimeoutError as e:
             raise WebSocketReconnect("Verification timeout") from e
@@ -220,7 +220,7 @@ class WebsocketClient(EEWClient):
             }
         )
 
-    async def verify_and_subscribe(self):
+    async def verify_and_subscribe(self, ignore_subscribed: bool = True):
         """
         Verify the API KEY and subscribe the services.
 
@@ -228,7 +228,10 @@ class WebsocketClient(EEWClient):
         :raise WebSocketReconnect: If the API key is already in used.
         :raise TimeoutError: If the verification times out.
         """
-        await self._send_verify(self.websocket_config.to_dict())
+        data = self.websocket_config.to_dict()
+        if ignore_subscribed:
+            data["service"] = [v for v in data["service"] if v not in self.subscribed_services]
+        await self._send_verify(data)
 
     async def connect(self):
         """Connect to the WebSocket"""
@@ -239,9 +242,11 @@ class WebsocketClient(EEWClient):
         while not self.__closed:
             try:
                 if not self.ws or self.ws.closed:
+                    self.subscribed_services.clear()
+                    self.logger.debug("Connecting to WebSocket...")
                     self.ws = await self.__session.ws_connect(self.get_websocket_route())
                 # send identify
-                await self.verify_and_subscribe()
+                await self.verify_and_subscribe(ignore_subscribed=False)
                 if not in_reconnect or not self.__ready:
                     self.logger.info(
                         "EEW WebSocket is ready\n"
@@ -270,10 +275,13 @@ class WebsocketClient(EEWClient):
                 self.logger.info(f"{e.reason}, reconnecting in {self._reconnect_delay} seconds...")
                 await asyncio.sleep(self._reconnect_delay)
             except Exception as e:
+                self._reconnect_delay += 10
                 self.logger.exception("An error occurred, reconnecting...", exc_info=e)
+                await asyncio.sleep(self._reconnect_delay)
 
     async def _loop(self):
-        async for msg in self.ws:
+        while True:
+            msg = await self.ws.receive()
             self.logger.debug(f"WebSocket received message: {msg}")
             if msg.type is WSMsgType.TEXT:
                 await self._handle_message(msg.data)
