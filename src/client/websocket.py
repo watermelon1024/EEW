@@ -328,6 +328,7 @@ class WebsocketClient(EEWClient):
         return self
 
     async def on_eew(self, data: dict):
+        self.logger.info(data)
         if data["author"] != "cwa":
             # only receive caw's eew
             return
