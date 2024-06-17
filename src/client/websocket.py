@@ -334,7 +334,7 @@ class WebsocketClient(EEWClient):
         eew = self._alerts.get(data["id"])
         if eew is None:
             await self.new_alert(data)
-        else if data["serial"] > eew.serial:
+        elif data["serial"] > eew.serial:
             await self.update_alert(data)
 
     async def close(self):
