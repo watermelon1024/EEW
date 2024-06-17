@@ -220,7 +220,7 @@ class WebsocketClient(EEWClient):
             }
         )
 
-    async def verify_and_subscribe(self, ignore_subscribed: bool = True):
+    async def verify_and_subscribe(self, ignore_subscribed: bool = False):
         """
         Verify the API KEY and subscribe the services.
 
@@ -300,13 +300,13 @@ class WebsocketClient(EEWClient):
     async def _dispatch_event(self, data: dict[str, Any]):
         event_type = data.get("type")
         if event_type == WebSocketEvent.VERIFY.value:
-            await self.verify_only()
+            await self.verify_and_subscribe()
         elif event_type == WebSocketEvent.INFO.value:
             data = data.get("data", {})
             code = data.get("code")
             if code == 503:
                 await asyncio.sleep(5)
-                await self.verify_only()
+                await self.verify_and_subscribe()
             else:
                 await self._emit(WebSocketEvent.INFO, data)
         elif event_type == "data":
@@ -334,7 +334,7 @@ class WebsocketClient(EEWClient):
         eew = self._alerts.get(data["id"])
         if eew is None:
             await self.new_alert(data)
-        else:
+        else if data["serial"] > eew.serial:
             await self.update_alert(data)
 
     async def close(self):
