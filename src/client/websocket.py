@@ -280,8 +280,7 @@ class WebsocketClient(EEWClient):
                 await asyncio.sleep(self._reconnect_delay)
 
     async def _loop(self):
-        while True:
-            msg = await self.ws.receive()
+        async for msg in self.ws:
             self.logger.debug(f"WebSocket received message: {msg}")
             if msg.type is WSMsgType.TEXT:
                 await self._handle_message(msg.data)
@@ -291,6 +290,9 @@ class WebsocketClient(EEWClient):
                 return
             elif msg.type is WSMsgType.ERROR:
                 await self._emit(WebSocketEvent.ERROR, self.ws.exception())
+
+        raise WebSocketReconnect("WebSocket disconnected")
+
 
     async def _handle_message(self, raw: str):
         data = json.loads(raw)
