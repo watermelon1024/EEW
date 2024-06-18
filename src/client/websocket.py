@@ -169,8 +169,7 @@ class WebsocketClient(EEWClient):
         :raise AuthorizationFailed: If the API key is invalid.
         :raise WebSocketReconnect: If the API key is already in used.
         """
-        while True:
-            msg = await self.ws.receive()
+        async for msg in self.ws:
             self.logger.debug(f"Received message: {msg.data}")
             if msg.type is WSMsgType.TEXT:
                 data = json.loads(msg.data)
@@ -192,6 +191,8 @@ class WebsocketClient(EEWClient):
                         raise AuthorizationFailed(message)
                     elif code == 429:
                         raise WebSocketReconnect("Rate limit exceeded")
+                        
+        raise WebSocketReconnect("WebSocket disconnected")
 
     async def _send_verify(self, config: dict):
         self.logger.debug(f"Sending config: {config}")
