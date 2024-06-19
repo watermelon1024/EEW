@@ -6,13 +6,36 @@ from enum import Enum
 from typing import Any, Optional, Union
 
 import aiohttp
-from aiohttp import ClientWebSocketResponse, WSMsgType
 
 from ..earthquake.eew import EEW
+from ..logging import Logger
 from ..utils import MISSING
 from .abc import EEWClient
 
 DOMAIN = "exptech.dev"
+
+
+class WebSocket(aiohttp.ClientWebSocketResponse):
+    """
+    A websocket connection to the API.
+    """
+
+    _logger: Logger
+
+    async def receive(self, timeout: float | None = None) -> aiohttp.WSMessage:
+        msg = await super().receive(timeout)
+        self._logger.debug(f"Websocket received: {msg}")
+        return msg
+
+    @classmethod
+    async def connect(cls, session: aiohttp.ClientSession, logger: Logger, url: str, **kwargs):
+        """
+        Connect to the websocket.
+        """
+        session._ws_response_class = cls
+        self: cls = await session.ws_connect(url, **kwargs)
+        self._logger = logger
+        return self
 
 
 class AuthorizationFailed(Exception):
@@ -96,7 +119,7 @@ class WebsocketClient(EEWClient):
     __event_loop: Optional[asyncio.AbstractEventLoop] = MISSING
     __task: Optional[asyncio.Task] = MISSING
     __session: Optional[aiohttp.ClientSession] = MISSING
-    ws: Optional[ClientWebSocketResponse] = MISSING
+    ws: Optional[WebSocket] = MISSING
     subscribed_services: list[Union[SupportedService, str]] = []
     event_handlers = defaultdict(list)
     __ready = False
@@ -170,8 +193,7 @@ class WebsocketClient(EEWClient):
         :raise WebSocketReconnect: If the API key is already in used.
         """
         async for msg in self.ws:
-            self.logger.debug(f"Received message: {msg.data}")
-            if msg.type is WSMsgType.TEXT:
+            if msg.type is aiohttp.WSMsgType.TEXT:
                 data = json.loads(msg.data)
                 if data.get("type") == WebSocketEvent.INFO.value:
                     data = data["data"]
@@ -191,7 +213,7 @@ class WebsocketClient(EEWClient):
                         raise AuthorizationFailed(message)
                     elif code == 429:
                         raise WebSocketReconnect("Rate limit exceeded")
-                        
+
         raise WebSocketReconnect("WebSocket disconnected")
 
     async def _send_verify(self, config: dict):
@@ -237,7 +259,7 @@ class WebsocketClient(EEWClient):
     async def connect(self):
         """Connect to the WebSocket"""
         if not self.__session:
-            self.__session = aiohttp.ClientSession()
+            self.__session = aiohttp.ClientSession(ws_response_class=WebSocket)
 
         in_reconnect = False
         while not self.__closed:
@@ -245,7 +267,7 @@ class WebsocketClient(EEWClient):
                 if not self.ws or self.ws.closed:
                     self.subscribed_services.clear()
                     self.logger.debug("Connecting to WebSocket...")
-                    self.ws = await self.__session.ws_connect(self.get_websocket_route())
+                    self.ws = await WebSocket.connect(self.__session, self.logger, self.get_websocket_route())
                 # send identify
                 await self.verify_and_subscribe(ignore_subscribed=False)
                 if not in_reconnect or not self.__ready:
@@ -282,18 +304,16 @@ class WebsocketClient(EEWClient):
 
     async def _loop(self):
         async for msg in self.ws:
-            self.logger.debug(f"WebSocket received message: {msg}")
-            if msg.type is WSMsgType.TEXT:
+            if msg.type is aiohttp.WSMsgType.TEXT:
                 await self._handle_message(msg.data)
             elif msg.type is aiohttp.WSMsgType.CLOSED:
                 if self._reconnect:
                     raise WebSocketReconnect("WebSocket closed by server")
                 return
-            elif msg.type is WSMsgType.ERROR:
+            elif msg.type is aiohttp.WSMsgType.ERROR:
                 await self._emit(WebSocketEvent.ERROR, self.ws.exception())
 
         raise WebSocketReconnect("WebSocket disconnected")
-
 
     async def _handle_message(self, raw: str):
         data = json.loads(raw)
