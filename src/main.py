@@ -50,6 +50,7 @@ def main():
             module_path = f"src.notification.{module_name}.register"
         else:
             logger.debug(f"Ignoring importing unknown file type: {path.name}")
+            continue
         try:
             logger.debug(f"Importing {module_path}...")
             module = importlib.import_module(module_path)
