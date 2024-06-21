@@ -22,7 +22,9 @@ class AuthorizationFailed(Exception):
 class WebSocketReconnect(Exception):
     """Represents a websocket reconnect signal."""
 
-    def __init__(self, reason: Any = None, reopen: bool = False, *args: object) -> None:
+    def __init__(
+        self, reason: Any = None, reopen: bool = False, source_exc: Exception = None, *args: object
+    ) -> None:
         """Represents a websocket reconnect signal.
 
         :param reason: The reason to reconnect the websocket, defaults to None
@@ -33,6 +35,7 @@ class WebSocketReconnect(Exception):
         super().__init__(*args)
         self.reason = reason
         self.reopen = reopen
+        self.source_exc = source_exc
 
 
 class WebSocketClosure(Exception):
@@ -279,7 +282,7 @@ class ExpTechWebSocket(aiohttp.ClientWebSocketResponse):
         except WebSocketReconnect:
             raise
         except WebSocketClosure as e:
-            raise WebSocketReconnect("Websocket closed", reopen=True) from e
+            raise WebSocketReconnect("Websocket closed", reopen=True, source_exc=e) from e
         except asyncio.TimeoutError as e:
             raise WebSocketReconnect("Websocket message received timeout", reopen=False) from e
         except WebSocketException as e:
@@ -366,15 +369,15 @@ class WebsocketClient(EEWClient):
                     self.subscribed_services.clear()
                     self.logger.debug("Connecting to WebSocket...")
                     self.ws = await ExpTechWebSocket.connect(self, self.__session)
-                    if not self.__ready:
-                        self.logger.info(
-                            "EEW WebSocket is ready\n"
-                            "--------------------------------------------------\n"
-                            f"Subscribed services: {', '.join(self.ws.subscribed_services)}\n"
-                            "--------------------------------------------------"
-                        )
+                if not self.__ready:
+                    self.logger.info(
+                        "EEW WebSocket is ready\n"
+                        "--------------------------------------------------\n"
+                        f"Subscribed services: {', '.join(self.ws.subscribed_services)}\n"
+                        "--------------------------------------------------"
+                    )
                     self.__ready = True
-                if in_reconnect:
+                elif in_reconnect:
                     self.logger.info(
                         "EEW WebSocket successfully reconnect\n"
                         "--------------------------------------------------\n"
@@ -393,9 +396,7 @@ class WebsocketClient(EEWClient):
                     await self.ws.close()
                 in_reconnect = True
                 self._reconnect_delay += 10
-                self.logger.exception(
-                    f"Attempting a reconnect in {self._reconnect_delay}s: {e.reason}", exc_info=e
-                )
+                self.logger.exception(f"Attempting a reconnect in {self._reconnect_delay}s: {e.reason}")
                 await asyncio.sleep(self._reconnect_delay)
             except Exception as e:
                 self._reconnect_delay += 10
