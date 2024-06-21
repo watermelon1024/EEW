@@ -26,11 +26,11 @@ def main():
 
     key = os.getenv("API_KEY")
     if key:
-        from .client.websocket import SupportedService, WebsocketClient, WebSocketConnectionConfig
+        from .client.websocket import WebsocketClient, WebSocketConnectionConfig, WebSocketService
 
         logger.info("API_KEY found, using WebSocket Client")
         ws_config = WebSocketConnectionConfig(
-            key=key, service=[SupportedService.EEW, SupportedService.TREM_EEW]
+            key=key, service=[WebSocketService.EEW, WebSocketService.TREM_EEW]
         )
         client = WebsocketClient(config=config, logger=logger, websocket_config=ws_config)
     else:
