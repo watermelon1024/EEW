@@ -1,12 +1,16 @@
 import asyncio
 import random
 import time
+from typing import TYPE_CHECKING
 
 import aiohttp
 
 from ..logging import Logger
 from ..utils import MISSING
-from .websocket import ExpTechWebSocket, WebSocketConnectionConfig
+from .websocket import ExpTechWebSocket
+
+if TYPE_CHECKING:
+    from .client import Client
 
 
 class HTTPClient:
@@ -158,10 +162,10 @@ class HTTPClient:
         self._current_ws_node = url
         self._logger.info(f"Switched to websocket node: {url}")
 
-    async def ws_connect(self, config: WebSocketConnectionConfig):
+    async def ws_connect(self, client: Client):
         """
         Connect to the websocket.
         """
         if not self._current_ws_node:
             self._current_ws_node = self.WS_NODES[0]
-        return await ExpTechWebSocket.connect(config)
+        return await ExpTechWebSocket.connect(client)
