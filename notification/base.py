@@ -1,8 +1,6 @@
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    from ..earthquake.eew import EEW
+from src import EEW
 
 
 class NotificationClient(ABC):

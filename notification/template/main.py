@@ -4,9 +4,8 @@ The template for a custom notification client.
 See also: https://github.com/watermelon1024/EEW/blob/main/docs/zh-TW/dev/notification.md#開發客戶端功能
 """
 
-from ...config import Config
-from ...earthquake.eew import EEW
-from ...logging import Logger
+from src import EEW, Config, Logger
+
 from ..base import NotificationClient
 
 

@@ -5,9 +5,10 @@ from typing import Any, Optional
 import aiohttp
 from cachetools import TTLCache
 
+from notification.base import NotificationClient
+
 from ..earthquake.eew import EEW
 from ..logging import Logger
-from ..notification.base import NotificationClient
 from .http import HTTPClient
 from .websocket import (
     AuthorizationFailed,

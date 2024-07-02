@@ -7,10 +7,8 @@ from typing import Optional, TypedDict
 import discord
 from discord.ext import tasks
 
-from ..config import Config
-from ..earthquake.eew import EEW
-from ..logging import Logger
-from ..utils import MISSING
+from src import EEW, MISSING, Config, Logger
+
 from .base import NotificationClient
 
 

@@ -1,10 +1,11 @@
 import asyncio
 from abc import ABC, abstractmethod
 
+from notification.base import NotificationClient
+
 from ..config import Config
 from ..earthquake.location import RegionLocation
 from ..logging import Logger
-from ..notification.base import NotificationClient
 from ..utils import MISSING
 
 

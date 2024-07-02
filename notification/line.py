@@ -3,9 +3,8 @@ import os
 
 import aiohttp
 
-from ..config import Config
-from ..earthquake.eew import EEW
-from ..logging import Logger
+from src import EEW, Config, Logger
+
 from .base import NotificationClient
 
 LINE_API_NODE = "https://api.line.me/v2"
