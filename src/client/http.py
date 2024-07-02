@@ -6,7 +6,6 @@ from typing import TYPE_CHECKING
 import aiohttp
 
 from ..logging import Logger
-from ..utils import MISSING
 from .websocket import ExpTechWebSocket
 
 if TYPE_CHECKING:
@@ -30,8 +29,8 @@ class HTTPClient:
         debug: bool,
         *,
         api_version: int = 1,
-        session: aiohttp.ClientSession = MISSING,
-        loop: asyncio.AbstractEventLoop = MISSING,
+        session: aiohttp.ClientSession = None,
+        loop: asyncio.AbstractEventLoop = None,
     ):
         self._logger = logger
         self._debug_mode = debug
@@ -80,9 +79,9 @@ class HTTPClient:
         elif type_or_url == "random":
             idx = random.randint(0, len(self.node_latencies) - 1)
         else:
-            idx = MISSING
+            idx = None
 
-        if idx is MISSING:
+        if idx is None:
             url = type_or_url
         else:
             url = self.node_latencies[idx][0]
@@ -93,7 +92,7 @@ class HTTPClient:
     async def get(self, path: str, retry: int = 0):
         try:
             async with self._session.get(path) as r:
-                data: list[dict] = await r.json()
+                data = await r.json()
                 self._logger.debug(f"GET {path} receive: {data}")
                 return data
         except Exception:
@@ -106,7 +105,7 @@ class HTTPClient:
     async def post(self, path: str, data: dict, retry: int = 0):
         try:
             async with self._session.post(path, json=data) as r:
-                data: dict = await r.json()
+                data = await r.json()
                 self._logger.debug(f"POST {path} receive: {data}")
                 return data
         except Exception:
@@ -152,9 +151,9 @@ class HTTPClient:
         elif type_or_url == "random":
             idx = random.randint(0, len(self.ws_node_latencies) - 1)
         else:
-            idx = MISSING
+            idx = None
 
-        if idx is MISSING:
+        if idx is None:
             url = type_or_url
         else:
             url = self.ws_node_latencies[idx][0]

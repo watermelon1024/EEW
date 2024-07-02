@@ -167,10 +167,14 @@ class ExpTechWebSocket(aiohttp.ClientWebSocketResponse):
     async def verify(self):
         """
         Verify the websocket connection.
+
+        :return the subscribed services.
+        :rtype: list[SupportedService]
         """
         await self.start()
         data = await asyncio.wait_for(self.wait_for_verify(), timeout=60)
         self.subscribed_services = data["list"]
+        return self.subscribed_services
 
     async def wait_for_verify(self):
         """
@@ -244,22 +248,22 @@ class ExpTechWebSocket(aiohttp.ClientWebSocketResponse):
         if event_type == WebSocketEvent.VERIFY.value:
             await self.verify()
         elif event_type == WebSocketEvent.INFO.value:
-            data = data.get("data", {})
-            code = data.get("code")
+            data_ = data.get("data", {})
+            code = data_.get("code")
             if code == 503:
                 await asyncio.sleep(5)
                 await self.verify()
             else:
-                await self._emit(WebSocketEvent.INFO, data)
+                await self._emit(WebSocketEvent.INFO.value, data_)
         elif event_type == "data":
             time = data.get("time")
             data_ = data.get("data", {})
             data_["time"] = time
             data_type = data_.get("type")
             if data_type:
-                await self._emit(WebSocketEvent(data_type), data_)
+                await self._emit(data_type, data_)
         elif event_type == WebSocketEvent.NTP.value:
-            await self._emit(WebSocketEvent.NTP, data)
+            await self._emit(WebSocketEvent.NTP.value, data)
 
     @property
     def _emit(self):
