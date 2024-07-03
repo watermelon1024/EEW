@@ -4,12 +4,10 @@ The template for a custom notification client.
 See also: https://github.com/watermelon1024/EEW/blob/main/docs/zh-TW/dev/notification.md#開發客戶端功能
 """
 
-from src import EEW, Config, Logger
-
-from ..base import NotificationClient
+from src import EEW, BaseNotificationClient, Config, Logger
 
 
-class CustomNotificationClient(NotificationClient):
+class CustomNotificationClient(BaseNotificationClient):
     """
     Represents a [custom] EEW notification client.
     """
@@ -27,7 +25,7 @@ class CustomNotificationClient(NotificationClient):
         self.config = config
         ...
 
-    async def run(self) -> None:
+    async def start(self) -> None:
         """
         The entrypoint for the notification client.
         If this client doesn't need to run in the event loop, just type `pass` because this method is required.

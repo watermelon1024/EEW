@@ -3,14 +3,12 @@ import os
 
 import aiohttp
 
-from src import EEW, Config, Logger
-
-from .base import NotificationClient
+from src import EEW, BaseNotificationClient, Config, Logger
 
 LINE_API_NODE = "https://api.line.me/v2"
 
 
-class LineNotification(NotificationClient):
+class LineNotification(BaseNotificationClient):
     """
     Represents a linebot EEW notification client.
     """
@@ -207,7 +205,7 @@ class LineNotification(NotificationClient):
         """
         pass
 
-    async def run(self) -> None:
+    async def start(self) -> None:
         """
         The entrypoint for the notification client.
         """

@@ -310,9 +310,9 @@ class Client:
             if _path.name == "base.py" or _path.name == "template" or _path.name.startswith("__"):
                 continue
             if _path.is_file() and _path.name.endswith(".py"):
-                module_path = re.sub(path_split, ".", _path.name)[:-3]
+                module_path = re.sub(path_split, ".", _path.path)[:-3]
             elif _path.is_dir():
-                module_path = f"{re.sub(path_split, '.', _path.name)[:-3]}.register"
+                module_path = f"{re.sub(path_split, '.', _path.path)[:-3]}.register"
             else:
                 self.logger.debug(f"Ignoring importing unknown file type: {_path.name}")
                 continue

@@ -7,9 +7,7 @@ from typing import Optional, TypedDict
 import discord
 from discord.ext import tasks
 
-from src import EEW, MISSING, Config, Logger
-
-from .base import NotificationClient
+from src import EEW, MISSING, BaseNotificationClient, Config, Logger
 
 
 class NotifyAndChannel(TypedDict):
@@ -257,7 +255,7 @@ class EEWMessages:
         self.bot.load_extensions
 
 
-class DiscordNotification(NotificationClient, discord.Bot):
+class DiscordNotification(BaseNotificationClient, discord.Bot):
     """
     Represents a discord notification client.
     """
@@ -287,7 +285,7 @@ class DiscordNotification(NotificationClient, discord.Bot):
         self._client_ready = False
         intents = discord.Intents.default()
         owner_ids = config.get("owners")
-        super().__init__(owner_ids=owner_ids, intents=intents)
+        discord.Bot.__init__(self, owner_ids=owner_ids, intents=intents)
 
     async def get_or_fetch_channel(self, id: int, default=MISSING):
         try:
@@ -329,12 +327,12 @@ class DiscordNotification(NotificationClient, discord.Bot):
         )
         self._client_ready = True
 
-    async def run(self) -> None:
+    async def start(self) -> None:
         self.logger.info("Starting Discord Bot.")
-        await super().start(self.token, reconnect=True)
+        await discord.Bot.start(self, self.token, reconnect=True)
 
     async def close(self) -> None:
-        await super().close()
+        await discord.Bot.close(self)
         self.logger.info("Discord Bot closed.")
 
     async def send_eew(self, eew: EEW) -> Optional[EEWMessages]:
