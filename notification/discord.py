@@ -135,7 +135,7 @@ class EEWMessages:
 
         return self._region_intensity
 
-    async def _send_singal_message(self, channel: discord.TextChannel, mention: Optional[str] = None):
+    async def _send_single_message(self, channel: discord.TextChannel, mention: Optional[str] = None):
         eq = self.eew.earthquake
         try:
             return _SingleMessage(
@@ -148,7 +148,7 @@ class EEWMessages:
             self.bot.logger.exception(f"Failed to send message in {channel.name}", exc_info=e)
             return None
 
-    async def _edit_singal_message(self, message: _SingleMessage, intensity_embed: discord.Embed, **kwargs):
+    async def _edit_single_message(self, message: _SingleMessage, intensity_embed: discord.Embed, **kwargs):
         try:
             return await message.edit(content=message.mention, embeds=[self._info_embed, intensity_embed], **kwargs)  # type: ignore
         except Exception as e:
@@ -179,7 +179,7 @@ class EEWMessages:
             filter(
                 None,
                 await asyncio.gather(
-                    *(self._send_singal_message(d["channel"], d["mention"]) for d in notification_channels)
+                    *(self._send_single_message(d["channel"], d["mention"]) for d in notification_channels)
                 ),
             )
         )
@@ -208,7 +208,7 @@ class EEWMessages:
             self._last_update = datetime.now().timestamp()
             self._map_update_interval = max(self._last_update - current_time, self._map_update_interval)
 
-            m = await self._edit_singal_message(self.messages[0], intensity_embed, **file)
+            m = await self._edit_single_message(self.messages[0], intensity_embed, **file)
             if len(m.embeds) > 1 and (image := m.embeds[1].image):
                 self.map_url = image.url
             elif self.eew.earthquake.map.image is not None:
@@ -218,12 +218,12 @@ class EEWMessages:
             update = ()
             intensity_embed = self.intensity_embed()
         else:
-            update = (self._edit_singal_message(self.messages[0], intensity_embed.copy()),)
+            update = (self._edit_single_message(self.messages[0], intensity_embed.copy()),)
         intensity_embed.set_image(url=self.map_url)
 
         await asyncio.gather(
             *update,
-            *(self._edit_singal_message(msg, intensity_embed) for msg in self.messages[1:]),
+            *(self._edit_single_message(msg, intensity_embed) for msg in self.messages[1:]),
             return_exceptions=True,
         )
 
@@ -248,8 +248,8 @@ class EEWMessages:
         original_intensity_embed = self._intensity_embed.copy().set_image(url="attachment://image.png")
 
         await asyncio.gather(
-            self._edit_singal_message(self.messages[0], original_intensity_embed),
-            *(self._edit_singal_message(msg, self._intensity_embed) for msg in self.messages[1:]),
+            self._edit_single_message(self.messages[0], original_intensity_embed),
+            *(self._edit_single_message(msg, self._intensity_embed) for msg in self.messages[1:]),
             return_exceptions=True,
         )
         self.bot.load_extensions

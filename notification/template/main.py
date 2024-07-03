@@ -30,7 +30,7 @@ class CustomNotificationClient(BaseNotificationClient):
         The entrypoint for the notification client.
         If this client doesn't need to run in the event loop, just type `pass` because this method is required.
 
-        Note: DO NOT do any blocking calls to run the otification client.
+        Note: DO NOT do any blocking calls to run the notification client.
         Example:
         ```py
         # Bad

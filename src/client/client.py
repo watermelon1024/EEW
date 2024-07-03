@@ -12,7 +12,7 @@ from ..config import Config
 from ..earthquake.eew import EEW
 from ..logging import Logger
 from .http import HTTPClient
-from .notifiction import BaseNotificationClient
+from .notification import BaseNotificationClient
 from .websocket import (
     AuthorizationFailed,
     ExpTechWebSocket,
