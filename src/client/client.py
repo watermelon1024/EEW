@@ -185,7 +185,7 @@ class Client:
                 )
             # use http client while reconnecting
             task = self._loop.create_task(self._get_eew_loop())
-            await asyncio.sleep(self._reconnect_delay)
+            await asyncio.sleep(_reconnect_delay)
             self._http.switch_ws_node()
 
     async def get_eew(self):
