@@ -184,7 +184,8 @@ class Client:
                     f"An unhandleable error occurred, reconnecting in {_reconnect_delay}s", exc_info=e
                 )
             # use http client while reconnecting
-            task = self._loop.create_task(self._get_eew_loop())
+            if not task or task.done():
+                task = self._loop.create_task(self._get_eew_loop())
             await asyncio.sleep(_reconnect_delay)
             self._http.switch_ws_node()
 
