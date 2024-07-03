@@ -32,7 +32,7 @@ def main():
         logger.info("API_KEY not found, using HTTP Client")
         ws_config = None
 
-    client = Client(config=config, logger=logger, websocket_config=ws_config)
+    client = Client(config=config, logger=logger, websocket_config=ws_config, debug=config["debug-mode"])
     client.load_notification_clients("notification")
     client.run()
 
