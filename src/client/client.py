@@ -206,7 +206,7 @@ class Client:
         self.alerts.expire()
 
     async def _get_eew_loop(self):
-        self.logger.info("Starting ExpTech HTTP client is ready")
+        self.logger.info("ExpTech HTTP client is ready")
         self.__ready.set()
         task: asyncio.Task = None
         while True:
