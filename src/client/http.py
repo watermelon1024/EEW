@@ -35,9 +35,8 @@ class HTTPClient:
         self._logger = logger
         self._debug_mode = debug
 
-        self.API_NODES = [
-            f"https://api-{i}.{self.DOMAIN}/api/v{api_version}" for i in range(1, 3)
-        ]  # api-1 ~ api-2
+        self.API_NODES = [f"https://api-{i}.{self.DOMAIN}" for i in range(1, 3)]  # api-1 ~ api-2
+        self.__API_VERSION = api_version
         self.WS_NODES = [f"wss://lb-{i}.{self.DOMAIN}/websocket" for i in range(1, 5)]  # lb-1 ~ lb-4
 
         self._loop = loop or asyncio.get_event_loop()
@@ -59,7 +58,10 @@ class HTTPClient:
 
     async def test_api_latencies(self):
         """Test all API nodes latencies"""
-        latencies = [(node, await self._test_latency(f"{node}/eq/eew")) for node in self.API_NODES]
+        latencies = [
+            (node, await self._test_latency(f"{node}/api/v{self.__API_VERSION}/eq/eew"))
+            for node in self.API_NODES
+        ]
         latencies.sort(key=lambda x: x[1])
         self.node_latencies = latencies
         return latencies
@@ -89,11 +91,12 @@ class HTTPClient:
         self._session._base_url = aiohttp.client.URL(url)
         self._logger.info(f"Switched to API node: {url}")
 
-    async def get(self, path: str, retry: int = 0):
+    async def get(self, url: str, retry: int = 0):
+        url = f"/api/v{self.__API_VERSION}{url}"
         try:
-            async with self._session.get(path) as r:
+            async with self._session.get(url) as r:
                 data = await r.json()
-                self._logger.debug(f"GET {path} receive: {data}")
+                self._logger.debug(f"GET {url} receive: {data}")
                 return data
         except Exception:
             if retry > 0:
@@ -102,11 +105,12 @@ class HTTPClient:
                 return await self.get(retry - 1)
             raise
 
-    async def post(self, path: str, data: dict, retry: int = 0):
+    async def post(self, url: str, data: dict, retry: int = 0):
+        url = f"/api/v{self.__API_VERSION}{url}"
         try:
-            async with self._session.post(path, json=data) as r:
+            async with self._session.post(url, json=data) as r:
                 data = await r.json()
-                self._logger.debug(f"POST {path} receive: {data}")
+                self._logger.debug(f"POST {url} receive: {data}")
                 return data
         except Exception:
             if retry > 0:
@@ -161,7 +165,7 @@ class HTTPClient:
         self._current_ws_node = url
         self._logger.info(f"Switched to websocket node: {url}")
 
-    async def ws_connect(self, client: Client):
+    async def ws_connect(self, client: "Client"):
         """
         Connect to the websocket.
         """

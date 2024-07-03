@@ -23,6 +23,8 @@ from .websocket import (
 
 
 class Client:
+    """A client for interacting with ExpTech API."""
+
     config: Config
     logger: Logger
     debug_mode: bool
@@ -126,7 +128,7 @@ class Client:
     async def connect(self):
         """Connect to ExpTech API and start receiving data"""
         if self.websocket_config:
-            self._http.test_ws_latencies()
+            await self._http.test_ws_latencies()
             self._http.switch_ws_node("fastest")
             await self.ws_connect()
         else:
@@ -233,7 +235,7 @@ class Client:
         self.logger.info("Starting ExpTech API Client...")
 
         # test latencies
-        self._http.test_api_latencies()
+        await self._http.test_api_latencies()
         self._http.switch_api_node("fastest")
 
         self.add_listener(WebSocketEvent.EEW.value, self.on_eew)
