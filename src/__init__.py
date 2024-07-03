@@ -7,6 +7,7 @@ A simple wrapper to connect to ExpTech EEW API
 
 from .client.client import Client
 from .client.http import HTTPClient
+from .client.notifiction import BaseNotificationClient
 from .client.websocket import (
     AuthorizationFailed,
     ExpTechWebSocket,

@@ -1,15 +1,18 @@
 import asyncio
+import importlib
+import os
+import re
 from collections import defaultdict
 from typing import Any, Optional
 
 import aiohttp
 from cachetools import TTLCache
 
-from notification.base import NotificationClient
-
+from ..config import Config
 from ..earthquake.eew import EEW
 from ..logging import Logger
 from .http import HTTPClient
+from .notifiction import BaseNotificationClient
 from .websocket import (
     AuthorizationFailed,
     ExpTechWebSocket,
@@ -20,27 +23,30 @@ from .websocket import (
 
 
 class Client:
+    config: Config
     logger: Logger
     debug_mode: bool
     alerts: TTLCache[str, EEW]
-    notification_client: list[NotificationClient]
+    notification_client: list[BaseNotificationClient]
     _loop: Optional[asyncio.AbstractEventLoop]
     _http: HTTPClient
     _ws: Optional[ExpTechWebSocket]
     websocket_config: WebSocketConnectionConfig
-    event_handlers: defaultdict[list]
+    event_handlers: defaultdict[str, list]
     __ready: asyncio.Event
     _reconnect = True
     __closed = False
 
     def __init__(
         self,
+        config: Config,
         logger: Logger,
         websocket_config: WebSocketConnectionConfig = None,
         debug: bool = False,
         session: aiohttp.ClientSession = None,
         loop: asyncio.AbstractEventLoop = None,
     ):
+        self.config = config
         self.logger = logger
         self.debug_mode = debug
         self._loop = loop or asyncio.get_event_loop()
@@ -232,7 +238,7 @@ class Client:
 
         self.add_listener(WebSocketEvent.EEW.value, self.on_eew)
         for client in self.notification_client:
-            self._loop.create_task(client.run())
+            self._loop.create_task(client.start())
             # TODO: wait until notification client ready
 
         await self.connect()
@@ -254,3 +260,57 @@ class Client:
     async def wait_until_ready(self):
         """Wait until the client is ready"""
         await self.__ready.wait()
+
+    def load_notification_client(self, path: str):
+        """Load a notification client"""
+        module_path = path
+        module_name = path.split(".")[-1]
+
+        try:
+            self.logger.debug(f"Importing {module_path}...")
+            module = importlib.import_module(module_path)
+            register_func = getattr(module, "register", None)
+            if register_func is None:
+                self.logger.debug(
+                    f"Ignoring registering {module_name}: No register function found in {module_path}"
+                )
+                return
+            namespace = getattr(module, "NAMESPACE", module_name)
+            _config = self.config.get(namespace)
+            if _config is None:
+                self.logger.warning(
+                    f"Ignoring registering {module_name}: The expected config namespace '{namespace}' was not found."
+                )
+                return
+            self.logger.debug(f"Registering {module_path}...")
+            notification_client = register_func(_config, self.logger)
+            if not issubclass(type(notification_client), BaseNotificationClient):
+                self.logger.debug(
+                    f"Ignoring registering {module_name}: Unsupport return type '{type(notification_client).__name__}'"
+                )
+                return
+            self.notification_client.append(notification_client)
+            self.logger.info(f"Registered notification client '{module_name}' successfully")
+        except ModuleNotFoundError as e:
+            if e.name == module_path:
+                self.logger.error(f"Failed to import '{module_name}': '{module_path}' not found")
+            else:
+                self.logger.error(
+                    f"Failed to registered '{module_name}' (most likely lacking of dependencies)"
+                )
+        except Exception as e:
+            self.logger.exception(f"Failed to import {module_path}", exc_info=e)
+
+    def load_notificatipon_clients(self, path: str):
+        path_split = re.compile(r"[\\/]")
+        for _path in os.scandir(path):
+            if _path.name == "base.py" or _path.name == "template" or _path.name.startswith("__"):
+                continue
+            if _path.is_file() and _path.name.endswith(".py"):
+                module_path = re.sub(path_split, ".", _path.name)[:-3]
+            elif _path.is_dir():
+                module_path = f"{re.sub(path_split, '.', _path.name)[:-3]}.register"
+            else:
+                self.logger.debug(f"Ignoring importing unknown file type: {_path.name}")
+                continue
+            self.load_notification_client(module_path)
