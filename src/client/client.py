@@ -138,6 +138,7 @@ class Client:
         """Connect to WebSocket"""
 
         in_reconnect = False
+        _reconnect_delay = 0
         task: asyncio.Task = None
         while not self.__closed:
             try:
@@ -162,7 +163,7 @@ class Client:
                 if task:
                     task.cancel()
                 in_reconnect = False
-                self._reconnect_delay = 0
+                _reconnect_delay = 0
                 while True:
                     await self._ws.pool_event()
             except AuthorizationFailed:
@@ -175,12 +176,12 @@ class Client:
                 if e.reopen and self._ws and not self._ws.closed:
                     await self._ws.close()
                 in_reconnect = True
-                self._reconnect_delay += 10
-                self.logger.exception(f"Attempting a reconnect in {self._reconnect_delay}s: {e.reason}")
+                _reconnect_delay += 10
+                self.logger.exception(f"Attempting a reconnect in {_reconnect_delay}s: {e.reason}")
             except Exception as e:
-                self._reconnect_delay += 10
+                _reconnect_delay += 10
                 self.logger.exception(
-                    f"An unhandleable error occurred, reconnecting in {self._reconnect_delay}s", exc_info=e
+                    f"An unhandleable error occurred, reconnecting in {_reconnect_delay}s", exc_info=e
                 )
             # use http client while reconnecting
             task = self._loop.create_task(self._get_eew_loop())
@@ -288,7 +289,7 @@ class Client:
             notification_client = register_func(_config, self.logger)
             if not issubclass(type(notification_client), BaseNotificationClient):
                 self.logger.debug(
-                    f"Ignoring registering {module_name}: Unsupport return type '{type(notification_client).__name__}'"
+                    f"Ignoring registering {module_name}: Unsupported return type '{type(notification_client).__name__}'"
                 )
                 return
             self.notification_client.append(notification_client)
@@ -303,7 +304,7 @@ class Client:
         except Exception as e:
             self.logger.exception(f"Failed to import {module_path}", exc_info=e)
 
-    def load_notificatipon_clients(self, path: str):
+    def load_notification_clients(self, path: str):
         path_split = re.compile(r"[\\/]")
         for _path in os.scandir(path):
             if _path.name == "base.py" or _path.name == "template" or _path.name.startswith("__"):

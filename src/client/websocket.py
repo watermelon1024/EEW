@@ -130,6 +130,7 @@ class ExpTechWebSocket(aiohttp.ClientWebSocketResponse):
     """
 
     __client: "Client"
+    _session: aiohttp.ClientSession
     _logger: Logger
     config: WebSocketConnectionConfig
     subscribed_services: list[Union[WebSocketService, str]]
@@ -144,7 +145,9 @@ class ExpTechWebSocket(aiohttp.ClientWebSocketResponse):
         """
         Connect to the websocket.
         """
-        self: cls = await client._http._session.ws_connect(client._http._current_ws_node, **kwargs)
+        session = aiohttp.ClientSession(ws_response_class=cls)
+        self: cls = await session.ws_connect(client._http._current_ws_node, **kwargs)
+        self._session = session
         self.__client = client
         self._logger = client.logger
         self.config = client.websocket_config
