@@ -14,6 +14,7 @@ from .client.websocket import (
     WebSocketConnectionConfig,
     WebSocketEvent,
     WebSocketReconnect,
+    WebSocketService,
 )
 from .config import Config
 from .earthquake.eew import EEW, EarthquakeData, Provider
@@ -37,5 +38,5 @@ from .earthquake.model import (
     get_wave_model,
     round_intensity,
 )
-from .logging import Logger, Logging
+from .logging import InterceptHandler, Logger, Logging
 from .utils import MISSING

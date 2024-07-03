@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 
 
 class HTTPClient:
-    """An HTTP client for interacting with ExpTech API."""
+    """A HTTP client for interacting with ExpTech API."""
 
     DOMAIN = "exptech.dev"
 
