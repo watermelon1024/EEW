@@ -2,6 +2,20 @@
 
 debug-mode = false
 
+[log]
+# days of logs to keep
+retention = 30
+format = "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | <level>{level: <8}</level> | <level>{message}</level>"
+
+[eew_source] # 地震速報接收來源
+cwa = true    # 中央氣象署
+trem = true   # TREM 臺灣即時地震監測
+kam = false   # 기상청 날씨누리
+jma = false   # 気象庁
+nied = false  # 防災科研
+scdzj = false # 四川省地震局
+all = false # 接收所有來源的速報(如果選擇這個，將無視上方的個別來源設定)
+
 [discord-bot]
 channels = [
     { id = 123456789, mention = "everyone" }, # mention everyone
@@ -14,8 +28,3 @@ channels = [
     "abcdefgh...",
     "ijklmnop...",
 ]  # user or group IDs
-
-[log]
-# days of logs to keep
-retention = 30
-format = "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | <level>{level: <8}</level> | <level>{message}</level>"

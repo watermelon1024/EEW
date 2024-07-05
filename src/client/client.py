@@ -28,6 +28,7 @@ class Client:
     config: Config
     logger: Logger
     debug_mode: bool
+    __eew_source: Optional[list[str]]
     alerts: TTLCache[str, EEW]
     notification_client: list[BaseNotificationClient]
     _loop: Optional[asyncio.AbstractEventLoop]
@@ -57,6 +58,10 @@ class Client:
         self.websocket_config = websocket_config
 
         self.alerts = TTLCache(maxsize=float("inf"), ttl=60 * 60)  # 1hr
+        eew_source: dict = config.get("eew_source")
+        self.__eew_source = (
+            None if eew_source.get("all") else [source for source, enable in eew_source.items() if enable]
+        )
         self.notification_client = []
         self.event_handlers = defaultdict(list)
         self.__ready = asyncio.Event()
@@ -115,10 +120,10 @@ class Client:
         return self
 
     async def on_eew(self, data: dict):
-        if data["author"] != "cwa":
-            # now only receive caw's eew
-            # TODO: support other source's eew
+        if self.__eew_source is not None and data["author"] not in self.__eew_source:
             return
+
+        self.alerts.expire()
         eew = self.alerts.get(data["id"])
         if eew is None:
             await self.new_alert(data)
@@ -197,14 +202,7 @@ class Client:
             return
 
         for d in data:
-            id = d["id"]
-            cached_eew = self.alerts.get(id)
-            if cached_eew is None:
-                await self.new_alert(d)
-            elif d["serial"] > cached_eew.serial:
-                await self.update_alert(d)
-
-        self.alerts.expire()
+            await self.on_eew(d)
 
     async def _get_eew_loop(self):
         self.logger.info("ExpTech HTTP client is ready")
