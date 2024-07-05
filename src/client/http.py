@@ -15,19 +15,12 @@ if TYPE_CHECKING:
 class HTTPClient:
     """A HTTP client for interacting with ExpTech API."""
 
-    DOMAIN = "exptech.dev"
-
-    node_latencies: list[tuple[str, float]] = []
-    _current_node_index: int = 0
-    ws_node_latencies: list[tuple[str, float]] = []
-    _current_ws_node_index: int = 0
-    _current_ws_node: str = ""
-
     def __init__(
         self,
         logger: Logger,
         debug: bool,
         *,
+        domain: str = "exptech.dev",
         api_version: int = 1,
         session: aiohttp.ClientSession = None,
         loop: asyncio.AbstractEventLoop = None,
@@ -35,9 +28,18 @@ class HTTPClient:
         self._logger = logger
         self._debug_mode = debug
 
-        self.API_NODES = [f"https://api-{i}.{self.DOMAIN}" for i in range(1, 3)]  # api-1 ~ api-2
+        self.DOMAIN = domain
         self.__API_VERSION = api_version
+        self.API_NODES = [
+            f"https://api-{i}.{self.DOMAIN}/api/v{api_version}" for i in range(1, 3)
+        ]  # api-1 ~ api-2
+        self.__base_url = self.API_NODES[0]
+        self.node_latencies = [(node, float("inf")) for node in self.API_NODES]
+        self.__current_node_index = 0
         self.WS_NODES = [f"wss://lb-{i}.{self.DOMAIN}/websocket" for i in range(1, 5)]  # lb-1 ~ lb-4
+        self._current_ws_node = self.WS_NODES[0]
+        self.ws_node_latencies = [(node, float("inf")) for node in self.WS_NODES]
+        self._current_ws_node_index = 0
 
         self._loop = loop or asyncio.get_event_loop()
         self._session = session or aiohttp.ClientSession(loop=self._loop)
@@ -57,10 +59,7 @@ class HTTPClient:
 
     async def test_api_latencies(self):
         """Test all API nodes latencies"""
-        latencies = [
-            (node, await self._test_latency(f"{node}/api/v{self.__API_VERSION}/eq/eew"))
-            for node in self.API_NODES
-        ]
+        latencies = [(node, await self._test_latency(f"{node}/eq/eew")) for node in self.API_NODES]
         latencies.sort(key=lambda x: x[1])
         self.node_latencies = latencies
         return latencies
@@ -74,7 +73,7 @@ class HTTPClient:
         """
 
         if type_or_url == "next":
-            idx = (self._current_node_index + 1) % len(self.node_latencies)
+            idx = (self.__current_node_index + 1) % len(self.node_latencies)
         elif type_or_url == "fastest":
             idx = 0
         elif type_or_url == "random":
@@ -86,37 +85,29 @@ class HTTPClient:
             url = type_or_url
         else:
             url = self.node_latencies[idx][0]
-            self._current_node_index = idx
-        self._session._base_url = aiohttp.client.URL(url)
+            self.__current_node_index = idx
+        self.__base_url = url
         self._logger.info(f"Switched to API node: {url}")
 
-    async def get(self, url: str, retry: int = 0):
-        url = f"/api/v{self.__API_VERSION}{url}"
+    async def request(self, method: str, path: str, *, json: bool = True, retry: int = 0, **kwargs):
+        url = self.__base_url + path
         try:
-            async with self._session.get(url) as r:
-                data = await r.json()
-                self._logger.debug(f"GET {url} receive: {data}")
-                return data
+            async with self._session.request(method, url, **kwargs) as r:
+                resp = await r.json() if json else await r.text()
+                self._logger.debug(f"{method} {url} receive {r.status}: {resp}")
+                return resp
         except Exception:
             if retry > 0:
                 self.switch_api_node()
                 await asyncio.sleep(1)
-                return await self.get(retry - 1)
+                return await self.request(method, path, json=json, retry=retry - 1, **kwargs)
             raise
 
-    async def post(self, url: str, data: dict, retry: int = 0):
-        url = f"/api/v{self.__API_VERSION}{url}"
-        try:
-            async with self._session.post(url, json=data) as r:
-                data = await r.json()
-                self._logger.debug(f"POST {url} receive: {data}")
-                return data
-        except Exception:
-            if retry > 0:
-                self.switch_api_node()
-                await asyncio.sleep(1)
-                return await self.post(retry - 1)
-            raise
+    async def get(self, path: str, retry: int = 0, **kwargs):
+        return await self.request("GET", path, retry=retry, **kwargs)
+
+    async def post(self, path: str, data: dict, retry: int = 0, **kwargs):
+        return await self.request("POST", path, data=data, retry=retry, **kwargs)
 
     # websocket node
     async def _test_ws_latency(self, url: str) -> float:
