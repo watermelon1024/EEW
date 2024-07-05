@@ -130,10 +130,10 @@ class ExpTechWebSocket(aiohttp.ClientWebSocketResponse):
     """
 
     __client: "Client"
-    _session: aiohttp.ClientSession
     _logger: Logger
     config: WebSocketConnectionConfig
     subscribed_services: list[Union[WebSocketService, str]]
+    __wait_until_ready: asyncio.Event
 
     async def debug_receive(self, timeout: float | None = None) -> aiohttp.WSMessage:
         msg = await super().receive(timeout)
@@ -145,9 +145,7 @@ class ExpTechWebSocket(aiohttp.ClientWebSocketResponse):
         """
         Connect to the websocket.
         """
-        session = aiohttp.ClientSession(ws_response_class=cls)
-        self: cls = await session.ws_connect(client._http._current_ws_node, **kwargs)
-        self._session = session
+        self: cls = await client._http._session.ws_connect(client._http._current_ws_node, **kwargs)
         self.__client = client
         self._logger = client.logger
         self.config = client.websocket_config
@@ -155,6 +153,7 @@ class ExpTechWebSocket(aiohttp.ClientWebSocketResponse):
         if client.debug_mode:
             self.receive = self.debug_receive
 
+        self.__wait_until_ready = asyncio.Event()
         await self.verify()
 
         return self
@@ -177,6 +176,7 @@ class ExpTechWebSocket(aiohttp.ClientWebSocketResponse):
         await self.start()
         data = await asyncio.wait_for(self.wait_for_verify(), timeout=60)
         self.subscribed_services = data["list"]
+        self.__wait_until_ready.set()
         return self.subscribed_services
 
     async def wait_for_verify(self):
@@ -213,6 +213,9 @@ class ExpTechWebSocket(aiohttp.ClientWebSocketResponse):
                 raise AuthorizationFailed(message) from None
             elif code == 429:
                 raise WebSocketReconnect("Rate limit exceeded", reopen=True) from None
+
+    async def wait_until_ready(self):
+        await self.__wait_until_ready.wait()
 
     async def receive_and_check(self):
         """

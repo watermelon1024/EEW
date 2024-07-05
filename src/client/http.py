@@ -43,6 +43,7 @@ class HTTPClient:
 
         self._loop = loop or asyncio.get_event_loop()
         self._session = session or aiohttp.ClientSession(loop=self._loop)
+        self._session._ws_response_class = ExpTechWebSocket
 
     # http api node
     async def _test_latency(self, url: str) -> float:
