@@ -91,6 +91,22 @@ class HTTPClient:
         self._logger.info(f"Switched to API node: {url}")
 
     async def request(self, method: str, path: str, *, json: bool = True, retry: int = 0, **kwargs):
+        """
+        Make a request to the API.
+
+        :param method: The HTTP method to use.
+        :type method: str
+        :param path: The path to request.
+        :type path: str
+        :param json: Whether to return the response as JSON.
+        :type json: bool
+        :param retry: The number of retries if the request fails.
+        :type retry: int
+        :param kwargs: Additional keyword arguments to pass to the request.
+        :type kwargs: dict
+        :return: The response from the API.
+        :rtype: str | dict | Any
+        """
         url = self.__base_url + path
         try:
             async with self._session.request(method, url, **kwargs) as r:
@@ -105,9 +121,35 @@ class HTTPClient:
             raise
 
     async def get(self, path: str, retry: int = 0, **kwargs):
+        """
+        Make a GET request to the API.
+
+        :param path: The path to request.
+        :type path: str
+        :param retry: The number of retries if the request fails.
+        :type retry: int
+        :param kwargs: Additional keyword arguments to pass to the request.
+        :type kwargs: dict
+        :return: The response from the API.
+        :rtype: str | dict | Any
+        """
         return await self.request("GET", path, retry=retry, **kwargs)
 
     async def post(self, path: str, data: dict, retry: int = 0, **kwargs):
+        """
+        Make a POST request to the API.
+
+        :param path: The path to request.
+        :type path: str
+        :param data: The data to send in the request body.
+        :type data: dict
+        :param retry: The number of retries if the request fails.
+        :type retry: int
+        :param kwargs: Additional keyword arguments to pass to the request.
+        :type kwargs: dict
+        :return: The response from the API.
+        :rtype: str | dict | Any
+        """
         return await self.request("POST", path, data=data, retry=retry, **kwargs)
 
     # websocket node

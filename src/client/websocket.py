@@ -215,6 +215,7 @@ class ExpTechWebSocket(aiohttp.ClientWebSocketResponse):
                 raise WebSocketReconnect("Rate limit exceeded", reopen=True) from None
 
     async def wait_until_ready(self):
+        """Wait until websocket client is ready"""
         await self.__wait_until_ready.wait()
 
     async def receive_and_check(self):

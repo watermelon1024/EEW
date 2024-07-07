@@ -67,6 +67,7 @@ class Client:
         self.__ready = asyncio.Event()
 
     async def new_alert(self, data: dict):
+        """Send a new EEW alert"""
         eew = EEW.from_dict(data)
         self.alerts[eew.id] = eew
 
@@ -88,6 +89,7 @@ class Client:
             self._loop.create_task(client.send_eew(eew))
 
     async def update_alert(self, data: dict):
+        """Update an existing EEW alert"""
         eew = EEW.from_dict(data)
         old_eew = self.alerts.get(eew.id)
         self.alerts[eew.id] = eew
@@ -116,11 +118,15 @@ class Client:
             self._loop.create_task(handler(*args))
 
     def add_listener(self, event: WebSocketEvent, handler: Any):
+        """Add a listener for a specific event"""
         self.event_handlers[event].append(handler)
         return self
 
     async def on_eew(self, data: dict):
+        """Handle EEW event"""
         if self.__eew_source is not None and data["author"] not in self.__eew_source:
+            # source is None: all source
+            # source is list: only specified source
             return
 
         self.alerts.expire()
@@ -141,7 +147,6 @@ class Client:
 
     async def ws_connect(self):
         """Connect to WebSocket"""
-
         in_reconnect = False
         _reconnect_delay = 0
         task: asyncio.Task = None
@@ -260,7 +265,7 @@ class Client:
             self.logger.info("ExpTech API client has been stopped.")
 
     async def wait_until_ready(self):
-        """Wait until the client is ready"""
+        """Wait until the API client is ready"""
         await self.__ready.wait()
 
     def load_notification_client(self, path: str):
@@ -304,6 +309,7 @@ class Client:
             self.logger.exception(f"Failed to import {module_path}", exc_info=e)
 
     def load_notification_clients(self, path: str):
+        """Load all notification clients in the specified directory"""
         path_split = re.compile(r"[\\/]")
         for _path in os.scandir(path):
             if _path.name == "base.py" or _path.name == "template" or _path.name.startswith("__"):
