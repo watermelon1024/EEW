@@ -9,12 +9,11 @@ class BaseNotificationClient(ABC):
     """
 
     async def send_eew(self, eew: EEW):
+        """Send EEW notification"""
         pass
 
     async def update_eew(self, eew: EEW):
-        pass
-
-    async def lift_eew(self, eew: EEW):
+        """Update EEW notification"""
         pass
 
     async def start(self):
