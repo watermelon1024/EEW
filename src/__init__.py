@@ -7,7 +7,6 @@ A simple wrapper to connect to ExpTech EEW API
 
 from .client.client import Client
 from .client.http import HTTPClient
-from .client.notification import BaseNotificationClient
 from .client.websocket import (
     AuthorizationFailed,
     ExpTechWebSocket,
@@ -39,4 +38,5 @@ from .earthquake.model import (
     round_intensity,
 )
 from .logging import InterceptHandler, Logger, Logging
+from .notification.base import BaseNotificationClient
 from .utils import MISSING

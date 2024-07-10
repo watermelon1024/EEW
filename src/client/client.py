@@ -11,8 +11,8 @@ from cachetools import TTLCache
 from ..config import Config
 from ..earthquake.eew import EEW
 from ..logging import Logger
+from ..notification.base import BaseNotificationClient
 from .http import HTTPClient
-from .notification import BaseNotificationClient
 from .websocket import (
     AuthorizationFailed,
     ExpTechWebSocket,
@@ -185,17 +185,17 @@ class Client:
             except WebSocketReconnect as e:
                 if e.reopen and self._ws and not self._ws.closed:
                     await self._ws.close()
-                in_reconnect = True
-                _reconnect_delay += 10
                 self.logger.exception(f"Attempting a reconnect in {_reconnect_delay}s: {e.reason}")
             except Exception as e:
-                _reconnect_delay += 10
                 self.logger.exception(
                     f"An unhandleable error occurred, reconnecting in {_reconnect_delay}s", exc_info=e
                 )
             # use http client while reconnecting
             if not task or task.done():
                 task = self._loop.create_task(self._get_eew_loop())
+            in_reconnect = True
+            if _reconnect_delay < 600:  # max reconnect delay 10min
+                _reconnect_delay += 10
             await asyncio.sleep(_reconnect_delay)
             self._http.switch_ws_node()
 
@@ -312,8 +312,6 @@ class Client:
         """Load all notification clients in the specified directory"""
         path_split = re.compile(r"[\\/]")
         for _path in os.scandir(path):
-            if _path.name == "base.py" or _path.name == "template" or _path.name.startswith("__"):
-                continue
             if _path.is_file() and _path.name.endswith(".py"):
                 module_path = re.sub(path_split, ".", _path.path)[:-3]
             elif _path.is_dir():
