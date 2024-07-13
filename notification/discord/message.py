@@ -58,8 +58,8 @@ class EEWMessages:
         :type bot: DiscordNotification
         :param eew: The EEW instance.
         :type eew: EEW
-        :param message: The discord message.
-        :type message: _SingleMessage
+        :param messages: The discord message.
+        :type messages: list[_SingleMessage]
         """
         self.bot = bot
         self.eew = eew
@@ -178,12 +178,10 @@ class EEWMessages:
         """
         Send new discord messages.
 
+        :param bot: The discord bot.
+        :type bot: DiscordNotification
         :param eew: The EEW instance.
         :type eew: EEW
-        :param channels: Discord channels.
-        :type channels: list[discord.TextChannel]
-        :param mention: The mention to send.
-        :type mention: str
         :return: The new discord messages.
         :rtype: EEWMessage
         """
@@ -257,4 +255,3 @@ class EEWMessages:
             *(self._edit_single_message(msg, self._intensity_embed) for msg in self.messages[1:]),
             return_exceptions=True,
         )
-        self.bot.load_extensions
