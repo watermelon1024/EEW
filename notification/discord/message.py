@@ -1,16 +1,17 @@
 import asyncio
 import math
-import os
 from datetime import datetime
-from typing import Optional, TypedDict
+from typing import TYPE_CHECKING, Optional, TypedDict
 
 import discord
-from discord.ext import tasks
 
-from src import EEW, MISSING, BaseNotificationClient, Config, Logger
+from src import EEW
+
+if TYPE_CHECKING:
+    from .bot import DiscordNotification
 
 
-class NotifyAndChannel(TypedDict):
+class NotificationChannel(TypedDict):
     channel: discord.TextChannel
     mention: Optional[str]
 
@@ -20,15 +21,13 @@ class _SingleMessage:
     Represents a single message.
     """
 
-    __slots__ = ("message", "mention")
+    __slots__ = ("message", "mention", "edit")
 
     def __init__(self, message: discord.Message, mention: Optional[str]) -> None:
         self.message = message
         self.mention = mention
 
-    @property
-    def edit(self):
-        return self.message.edit
+        self.edit = self.message.edit
 
 
 class EEWMessages:
@@ -40,6 +39,7 @@ class EEWMessages:
         "bot",
         "eew",
         "messages",
+        "__ready",
         "_info_embed",
         "_intensity_embed",
         "_region_intensity",
@@ -64,6 +64,7 @@ class EEWMessages:
         self.bot = bot
         self.eew = eew
         self.messages = messages
+        self.__ready = asyncio.Event()
 
         self._info_embed: Optional[discord.Embed] = None
         self._intensity_embed = None
@@ -135,15 +136,28 @@ class EEWMessages:
 
         return self._region_intensity
 
-    async def _send_single_message(self, channel: discord.TextChannel, mention: Optional[str] = None):
+    async def _send_first_message(self):
+        "Fisrt time send message(s) in discord"
         eq = self.eew.earthquake
-        try:
-            return _SingleMessage(
-                await channel.send(
-                    f"{mention or ''} {eq.time.strftime('%H:%M:%S')} 於 {eq.location.display_name or eq.location} 發生規模`{eq.mag}`有感地震，慎防搖晃！",
+        msg = f"{eq.time.strftime('%H:%M:%S')} 於 {eq.location.display_name or eq.location} 發生規模 {eq.mag} 有感地震，慎防搖晃！"
+        self.messages = list(
+            filter(
+                None,
+                await asyncio.gather(
+                    *(
+                        self._send_single_message(channel["channel"], msg, channel["mention"])
+                        for channel in self.bot.notification_channels
+                    )
                 ),
-                mention,
             )
+        )
+        self.__ready.set()
+
+    async def _send_single_message(
+        self, channel: discord.TextChannel, content: str, mention: Optional[str] = None
+    ):
+        try:
+            return _SingleMessage(await channel.send(f"{content} {mention or ''}"), mention)
         except Exception as e:
             self.bot.logger.exception(f"Failed to send message in {channel.name}", exc_info=e)
             return None
@@ -160,10 +174,9 @@ class EEWMessages:
         cls,
         bot: "DiscordNotification",
         eew: EEW,
-        notification_channels: list[NotifyAndChannel],
     ) -> Optional["EEWMessages"]:
         """
-        Send a new discord message.
+        Send new discord messages.
 
         :param eew: The EEW instance.
         :type eew: EEW
@@ -175,16 +188,7 @@ class EEWMessages:
         :rtype: EEWMessage
         """
         self = cls(bot, eew, [])
-        self.messages = list(
-            filter(
-                None,
-                await asyncio.gather(
-                    *(self._send_single_message(d["channel"], d["mention"]) for d in notification_channels)
-                ),
-            )
-        )
-        if not self.messages:
-            return None
+        bot.loop.create_task(self._send_first_message())
 
         self._info_embed = self.info_embed()
         self._intensity_embed = discord.Embed(title="震度等級預估", description="計算中...")
@@ -196,6 +200,7 @@ class EEWMessages:
         """
         intensity_embed = self.intensity_embed()
         current_time = datetime.now().timestamp()
+        await self.__ready.wait()  # wait for all messages sent successfully
         if not self.map_url or current_time - self._last_update >= self._map_update_interval:
             eq = self.eew.earthquake
             if not eq.map._drawn:
@@ -253,143 +258,3 @@ class EEWMessages:
             return_exceptions=True,
         )
         self.bot.load_extensions
-
-
-class DiscordNotification(BaseNotificationClient, discord.Bot):
-    """
-    Represents a discord notification client.
-    """
-
-    # eew-id: EEWMessages
-    alerts: dict[str, EEWMessages] = {}
-    notification_channels: list[NotifyAndChannel] = []
-
-    def __init__(self, logger: Logger, config: Config, token: str) -> None:
-        """
-        Initialize a new discord notification client.
-
-        :param logger: The logger instance.
-        :type logger: Logger
-        :param config: The configuration.
-        :type config: Config
-        :param token: The discord bot token.
-        :type token: str
-        """
-        self.logger = logger
-        self.config = config
-        self.token = token
-
-        if not config.get("enable-log"):
-            logger.disable("discord")  # avoid pycord shard info spamming the console
-
-        self._client_ready = False
-        intents = discord.Intents.default()
-        owner_ids = config.get("owners")
-        discord.Bot.__init__(self, owner_ids=owner_ids, intents=intents)
-
-    async def get_or_fetch_channel(self, id: int, default=MISSING):
-        try:
-            return self.get_channel(id) or await self.fetch_channel(id)
-        except Exception as e:
-            if default is not MISSING:
-                return default
-            raise e
-
-    async def on_ready(self) -> None:
-        """
-        The event that is triggered when the bot is ready.
-        """
-        if self._client_ready:
-            return
-
-        for data in self.config["channels"]:
-            channel = await self.get_or_fetch_channel(data["id"], None)
-            if channel is None:
-                self.logger.warning(f"Ignore channel '{data['id']}' because it was not found.")
-                continue
-            elif not isinstance(channel, discord.TextChannel):
-                self.logger.warning(f"Ignore channel '{channel.id}' because it is not a text channel.")
-                continue
-            mention = (
-                None
-                if not (m := data.get("mention"))
-                else (f"<@&{m}>" if isinstance(m, int) else f"@{m.removeprefix('@')}")
-            )
-            self.notification_channels.append({"channel": channel, "mention": mention})
-
-        self.logger.info(
-            "Discord Bot is ready.\n"
-            "-------------------------\n"
-            f"Logged in as: {self.user.name}#{self.user.discriminator} ({self.user.id})\n"  # type: ignore
-            f" API Latency: {self.latency * 1000:.2f} ms\n"
-            f"Guilds Count: {len(self.guilds)}\n"
-            "-------------------------"
-        )
-        self._client_ready = True
-
-    async def start(self) -> None:
-        self.logger.info("Starting Discord Bot.")
-        await discord.Bot.start(self, self.token, reconnect=True)
-
-    async def close(self) -> None:
-        await discord.Bot.close(self)
-        self.logger.info("Discord Bot closed.")
-
-    async def send_eew(self, eew: EEW) -> Optional[EEWMessages]:
-        if len(self.notification_channels) == 0:
-            self.logger.warning("No Discord notification channel available.")
-            return None
-
-        m = await EEWMessages.send(self, eew, self.notification_channels)
-        if m is None:
-            self.logger.warning("Failed to send EEW message.")
-            return None
-        self.alerts[eew.id] = m
-
-        if not self.update_eew_messages_loop.is_running():
-            self.update_eew_messages_loop.start()
-
-        return m
-
-    async def update_eew(self, eew: EEW) -> Optional[EEWMessages]:
-        m = self.alerts.get(eew.id)
-        if m is None:
-            return await self.send_eew(eew)
-
-        return await m.update_eew_data(eew)
-
-    async def lift_eew(self, eew: EEW):
-        m = self.alerts.pop(eew.id, None)
-        if m is not None:
-            await m.lift_eew()
-
-    @tasks.loop(seconds=1)
-    async def update_eew_messages_loop(self):
-        if not self.alerts:
-            self.update_eew_messages_loop.stop()
-            return
-        now_time = int(datetime.now().timestamp())
-        for m in list(self.alerts.values()):
-            if now_time > m._lift_time:
-                await self.lift_eew(m.eew)
-            else:
-                await m.edit()
-
-
-NAMESPACE = "discord-bot"
-
-
-def register(config: Config, logger: Logger) -> None:
-    """
-    Register the discord notification client.
-
-    :param config: The configuration of discord bot.
-    :type config: Config
-    :param logger: The logger instance.
-    :type logger: Logger
-    """
-    token = os.getenv("DISCORD_BOT_TOKEN")
-    if token is None:
-        raise ValueError("No discord bot token provided.")
-
-    return DiscordNotification(logger, config, token)
