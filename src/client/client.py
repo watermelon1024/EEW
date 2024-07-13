@@ -268,9 +268,9 @@ class Client:
         """Wait until the API client is ready"""
         await self.__ready.wait()
 
-    def load_notification_client(self, path: str):
+    def load_notification_client(self, path: str, is_module: bool = False):
         """Load a notification client"""
-        module_path = path
+        module_path = path + (".register" if is_module else "")
         module_name = path.split(".")[-1]
 
         try:
@@ -312,11 +312,15 @@ class Client:
         """Load all notification clients in the specified directory"""
         path_split = re.compile(r"[\\/]")
         for _path in os.scandir(path):
+            if _path.name.startswith("__"):
+                continue
             if _path.is_file() and _path.name.endswith(".py"):
                 module_path = re.sub(path_split, ".", _path.path)[:-3]
+                is_module = False
             elif _path.is_dir():
-                module_path = f"{re.sub(path_split, '.', _path.path)[:-3]}.register"
+                module_path = re.sub(path_split, ".", _path.path)
+                is_module = True
             else:
                 self.logger.debug(f"Ignoring importing unknown file type: {_path.name}")
                 continue
-            self.load_notification_client(module_path)
+            self.load_notification_client(module_path, is_module=is_module)
