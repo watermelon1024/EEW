@@ -1,5 +1,6 @@
 """
 The template for a custom notification client.
+Note: This template is out of date, please wait for the next update.
 
 See also: https://github.com/watermelon1024/EEW/blob/main/docs/zh-TW/dev/notification.md#開發客戶端功能
 """

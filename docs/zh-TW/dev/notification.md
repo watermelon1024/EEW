@@ -1,4 +1,5 @@
 # 自訂通知客戶端
+  # 注意：此文檔已過時，請等待下次更新。\
   你有兩種方式可以製作你自訂客戶端：
   1. 單獨檔案\
     在`src/notification/`下建立你自己的python檔案(即`src/notification/your_client.py`)，並遵照`src/notification/template/main.py`的格式，撰寫[下方](#開發客戶端功能)內容
