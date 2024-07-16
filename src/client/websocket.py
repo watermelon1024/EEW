@@ -204,15 +204,15 @@ class ExpTechWebSocket(aiohttp.ClientWebSocketResponse):
                 return data
             elif code == 400:
                 # api key in used
-                raise WebSocketReconnect("API key is already in used", reopen=True) from None
+                raise WebSocketReconnect("API key is already in used", reopen=True) from message
             elif code == 401:
                 # no api key or invalid api key
-                raise AuthorizationFailed(message) from None
+                raise AuthorizationFailed(message) from message
             elif code == 403:
                 # vip membership expired
-                raise AuthorizationFailed(message) from None
+                raise AuthorizationFailed(message) from message
             elif code == 429:
-                raise WebSocketReconnect("Rate limit exceeded", reopen=True) from None
+                raise WebSocketReconnect("Rate limit exceeded", reopen=True) from message
 
     async def wait_until_ready(self):
         """Wait until websocket client is ready"""
@@ -235,11 +235,11 @@ class ExpTechWebSocket(aiohttp.ClientWebSocketResponse):
         elif msg.type is aiohttp.WSMsgType.BINARY:
             return msg
         elif msg.type is aiohttp.WSMsgType.ERROR:
-            raise WebSocketException(msg) from None
+            raise WebSocketException(msg)
         elif msg.type in (aiohttp.WSMsgType.CLOSED, aiohttp.WSMsgType.CLOSING, aiohttp.WSMsgType.CLOSE):
-            raise WebSocketClosure from None
+            raise WebSocketClosure
         else:
-            raise WebSocketException(msg, "Websocket received unhandleable message") from None
+            raise WebSocketException(msg, "Websocket received unhandleable message") from msg.data
 
     async def _handle(self, msg: aiohttp.WSMessage):
         if msg.type is aiohttp.WSMsgType.TEXT:
