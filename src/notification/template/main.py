@@ -67,14 +67,3 @@ class CustomNotificationClient(BaseNotificationClient):
         :type eew: EEW
         """
         ...
-
-    async def lift_eew(self, eew: EEW):
-        """
-        If an EEW alert was lifted, this method will be called.
-
-        Note: This method should not do any blocking calls.
-
-        :param eew: The lifted EEW.
-        :type eew: EEW
-        """
-        ...
