@@ -167,7 +167,7 @@ class EarthquakeData:
             magnitude=data["mag"],
             depth=data["depth"],
             time=datetime.fromtimestamp(data["time"] / 1000),
-            max_intensity=Intensity(i) if (i := data.get("max")) else MISSING,
+            max_intensity=Intensity(i) if (i := data.get("max")) is not None else MISSING,
         )
 
     def calc_expected_intensity(

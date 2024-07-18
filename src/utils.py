@@ -1,7 +1,7 @@
 from typing import Any
 
 
-class _Missing:
+class Missing:
     """
     Represents a status of missing.
     """
@@ -22,4 +22,4 @@ class _Missing:
         return iter([])
 
 
-MISSING: Any = _Missing()
+MISSING: Any = Missing()

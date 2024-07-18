@@ -195,7 +195,7 @@ def _group_region_by_city(regions: dict[int, RegionLocation]) -> dict[str, list[
 
 
 TAIWAN_CENTER = Location(120.982025, 23.973875)
-"The center of Tawian"
+"The center of Taiwan"
 
 with open("asset/region.json", "r", encoding="utf-8") as f:
     REGIONS: dict[int, RegionLocation] = _parse_region_dict(json.load(f))

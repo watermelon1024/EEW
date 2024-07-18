@@ -1,27 +1,21 @@
-from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING
+from abc import ABC
 
-if TYPE_CHECKING:
-    from ..earthquake.eew import EEW
+from ..earthquake.eew import EEW
 
 
-class NotificationClient(ABC):
+class BaseNotificationClient(ABC):
     """
     An ABC for notification client.
     """
 
-    @abstractmethod
-    async def send_eew(self, eew: "EEW"):
+    async def send_eew(self, eew: EEW):
+        """Send EEW notification"""
         pass
 
-    @abstractmethod
-    async def update_eew(self, eew: "EEW"):
+    async def update_eew(self, eew: EEW):
+        """Update EEW notification"""
         pass
 
-    @abstractmethod
-    async def lift_eew(self, eew: "EEW"):
-        pass
-
-    @abstractmethod
-    async def run(self):
+    async def start(self):
+        """Start the notification client in async"""
         pass

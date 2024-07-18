@@ -1,18 +1,14 @@
 import asyncio
 import json
-import random
-from collections import defaultdict
 from enum import Enum
-from typing import Any, Optional, Union
+from typing import TYPE_CHECKING, Any, Optional, Union
 
 import aiohttp
 
-from ..earthquake.eew import EEW
 from ..logging import Logger
-from ..utils import MISSING
-from .abc import EEWClient
 
-DOMAIN = "exptech.dev"
+if TYPE_CHECKING:
+    from .client import Client
 
 
 class AuthorizationFailed(Exception):
@@ -133,35 +129,31 @@ class ExpTechWebSocket(aiohttp.ClientWebSocketResponse):
     A websocket connection to the ExpTech API.
     """
 
-    __client: "WebsocketClient"
-    logger: Logger
+    __client: "Client"
+    _logger: Logger
     config: WebSocketConnectionConfig
     subscribed_services: list[Union[WebSocketService, str]]
+    __wait_until_ready: asyncio.Event
 
     async def debug_receive(self, timeout: float | None = None) -> aiohttp.WSMessage:
         msg = await super().receive(timeout)
-        self.logger.debug(f"Websocket received: {msg}")
+        self._logger.debug(f"Websocket received: {msg}")
         return msg
 
     @classmethod
-    def get_route(cls) -> str:
-        """Get a random websocket node."""
-        return f"wss://lb-{random.randint(1, 4)}.{DOMAIN}/websocket"
-
-    @classmethod
-    async def connect(cls, client: "WebsocketClient", session: aiohttp.ClientSession, **kwargs):
+    async def connect(cls, client: "Client", **kwargs):
         """
         Connect to the websocket.
         """
-        session._ws_response_class = cls
-        self: cls = await session.ws_connect(cls.get_route(), **kwargs)
+        self: cls = await client._http._session.ws_connect(client._http._current_ws_node, **kwargs)
         self.__client = client
-        self.logger = client.logger
+        self._logger = client.logger
         self.config = client.websocket_config
         self.subscribed_services = []
         if client.debug_mode:
             self.receive = self.debug_receive
 
+        self.__wait_until_ready = asyncio.Event()
         await self.verify()
 
         return self
@@ -177,10 +169,15 @@ class ExpTechWebSocket(aiohttp.ClientWebSocketResponse):
     async def verify(self):
         """
         Verify the websocket connection.
+
+        :return the subscribed services.
+        :rtype: list[SupportedService]
         """
         await self.start()
         data = await asyncio.wait_for(self.wait_for_verify(), timeout=60)
         self.subscribed_services = data["list"]
+        self.__wait_until_ready.set()
+        return self.subscribed_services
 
     async def wait_for_verify(self):
         """
@@ -207,15 +204,19 @@ class ExpTechWebSocket(aiohttp.ClientWebSocketResponse):
                 return data
             elif code == 400:
                 # api key in used
-                raise WebSocketReconnect("API key is already in used", reopen=True) from None
+                raise WebSocketReconnect("API key is already in used", reopen=True) from message
             elif code == 401:
                 # no api key or invalid api key
-                raise AuthorizationFailed(message) from None
+                raise AuthorizationFailed(message) from message
             elif code == 403:
                 # vip membership expired
-                raise AuthorizationFailed(message) from None
+                raise AuthorizationFailed(message) from message
             elif code == 429:
-                raise WebSocketReconnect("Rate limit exceeded", reopen=True) from None
+                raise WebSocketReconnect("Rate limit exceeded", reopen=True) from message
+
+    async def wait_until_ready(self):
+        """Wait until websocket client is ready"""
+        await self.__wait_until_ready.wait()
 
     async def receive_and_check(self):
         """
@@ -234,11 +235,11 @@ class ExpTechWebSocket(aiohttp.ClientWebSocketResponse):
         elif msg.type is aiohttp.WSMsgType.BINARY:
             return msg
         elif msg.type is aiohttp.WSMsgType.ERROR:
-            raise WebSocketException(msg) from None
+            raise WebSocketException(msg)
         elif msg.type in (aiohttp.WSMsgType.CLOSED, aiohttp.WSMsgType.CLOSING, aiohttp.WSMsgType.CLOSE):
-            raise WebSocketClosure from None
+            raise WebSocketClosure
         else:
-            raise WebSocketException(msg, "Websocket received unhandleable message") from None
+            raise WebSocketException(msg, "Websocket received unhandleable message") from msg.data
 
     async def _handle(self, msg: aiohttp.WSMessage):
         if msg.type is aiohttp.WSMsgType.TEXT:
@@ -254,22 +255,22 @@ class ExpTechWebSocket(aiohttp.ClientWebSocketResponse):
         if event_type == WebSocketEvent.VERIFY.value:
             await self.verify()
         elif event_type == WebSocketEvent.INFO.value:
-            data = data.get("data", {})
-            code = data.get("code")
+            data_ = data.get("data", {})
+            code = data_.get("code")
             if code == 503:
                 await asyncio.sleep(5)
                 await self.verify()
             else:
-                await self._emit(WebSocketEvent.INFO, data)
+                await self._emit(WebSocketEvent.INFO.value, data_)
         elif event_type == "data":
             time = data.get("time")
             data_ = data.get("data", {})
             data_["time"] = time
             data_type = data_.get("type")
             if data_type:
-                await self._emit(WebSocketEvent(data_type), data_)
+                await self._emit(data_type, data_)
         elif event_type == WebSocketEvent.NTP.value:
-            await self._emit(WebSocketEvent.NTP, data)
+            await self._emit(WebSocketEvent.NTP.value, data)
 
     @property
     def _emit(self):
@@ -286,176 +287,4 @@ class ExpTechWebSocket(aiohttp.ClientWebSocketResponse):
         except asyncio.TimeoutError as e:
             raise WebSocketReconnect("Websocket message received timeout", reopen=False) from e
         except WebSocketException as e:
-            self.logger.error(f"Websocket received an error: {e.description or e.message.data}", exc_info=e)
-
-
-class WebsocketClient(EEWClient):
-    _alerts: dict[str, EEW] = {}
-    __event_loop: Optional[asyncio.AbstractEventLoop] = MISSING
-    __task: Optional[asyncio.Task] = MISSING
-    __session: Optional[aiohttp.ClientSession] = MISSING
-    ws: Optional[ExpTechWebSocket] = MISSING
-    subscribed_services: list[Union[WebSocketService, str]] = []
-    event_handlers = defaultdict(list)
-    __ready = False
-    _reconnect = True
-    _reconnect_delay = 0
-    __closed = False
-
-    def __init__(self, *args, websocket_config: WebSocketConnectionConfig, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.websocket_config = websocket_config
-
-    async def new_alert(self, data: dict):
-        eew = EEW.from_dict(data)
-        self._alerts[eew.id] = eew
-
-        self.logger.info(
-            "New EEW alert is detected!\n"
-            "--------------------------------\n"
-            f"       ID: {eew.id} (Serial {eew.serial})\n"
-            f" Location: {eew.earthquake.location.display_name}({eew.earthquake.lon}, {eew.earthquake.lat})\n"
-            f"Magnitude: {eew.earthquake.mag}\n"
-            f"    Depth: {eew.earthquake.depth}km\n"
-            f"     Time: {eew.earthquake.time.strftime('%Y/%m/%d %H:%M:%S')}\n"
-            "--------------------------------"
-        )
-
-        eew.earthquake.calc_all_data_in_executor(self.__event_loop)
-
-        # call custom notification client
-        await asyncio.gather(*(c.send_eew(eew) for c in self._notification_client), return_exceptions=True)
-
-        return eew
-
-    async def update_alert(self, data: dict):
-        eew = EEW.from_dict(data)
-        old_eew = self._alerts.get(eew.id)
-        self._alerts[eew.id] = eew
-
-        self.logger.info(
-            "EEW alert updated\n"
-            "--------------------------------\n"
-            f"       ID: {eew.id} (Serial {eew.serial})\n"
-            f" Location: {eew.earthquake.location.display_name}({eew.earthquake.lon:.2f}, {eew.earthquake.lat:.2f})\n"
-            f"Magnitude: {eew.earthquake.mag}\n"
-            f"    Depth: {eew.earthquake.depth}km\n"
-            f"     Time: {eew.earthquake.time.strftime('%Y/%m/%d %H:%M:%S')}\n"
-            "--------------------------------"
-        )
-
-        if old_eew is not None:
-            old_eew.earthquake._calc_task.cancel()
-        eew.earthquake.calc_all_data_in_executor(self.__event_loop)
-
-        # call custom notification client
-        await asyncio.gather(*(c.update_eew(eew) for c in self._notification_client), return_exceptions=True)
-
-        return eew
-
-    async def lift_alert(self, eew: EEW):
-        # call custom notification client
-        await asyncio.gather(*(c.lift_eew(eew) for c in self._notification_client), return_exceptions=True)
-
-    async def connect(self):
-        """Connect to the WebSocket"""
-        if not self.__session:
-            self.__session = aiohttp.ClientSession(ws_response_class=ExpTechWebSocket)
-
-        in_reconnect = False
-        while not self.__closed:
-            try:
-                if not self.ws or self.ws.closed:
-                    self.subscribed_services.clear()
-                    self.logger.debug("Connecting to WebSocket...")
-                    self.ws = await ExpTechWebSocket.connect(self, self.__session)
-                if not self.__ready:
-                    self.logger.info(
-                        "EEW WebSocket is ready\n"
-                        "--------------------------------------------------\n"
-                        f"Subscribed services: {', '.join(self.ws.subscribed_services)}\n"
-                        "--------------------------------------------------"
-                    )
-                    self.__ready = True
-                elif in_reconnect:
-                    self.logger.info(
-                        "EEW WebSocket successfully reconnect\n"
-                        "--------------------------------------------------\n"
-                        f"Subscribed services: {', '.join(self.ws.subscribed_services)}\n"
-                        "--------------------------------------------------"
-                    )
-                in_reconnect = False
-                self._reconnect_delay = 0
-                while True:
-                    await self.ws.pool_event()
-            except AuthorizationFailed:
-                await self.close()
-                raise
-            except WebSocketReconnect as e:
-                if e.reopen and self.ws and not self.ws.closed:
-                    await self.ws.close()
-                in_reconnect = True
-                self._reconnect_delay += 10
-                self.logger.exception(f"Attempting a reconnect in {self._reconnect_delay}s: {e.reason}")
-                await asyncio.sleep(self._reconnect_delay)
-            except Exception as e:
-                self._reconnect_delay += 10
-                self.logger.exception(
-                    f"An unhandleable error occurred, reconnecting in {self._reconnect_delay}s", exc_info=e
-                )
-                await asyncio.sleep(self._reconnect_delay)
-
-    async def _emit(self, event: WebSocketEvent, *args):
-        for handler in self.event_handlers[event]:
-            self.__event_loop.create_task(handler(*args))
-
-    def on(self, event: WebSocketEvent, listener):
-        self.event_handlers[event].append(listener)
-        return self
-
-    async def on_eew(self, data: dict):
-        self.logger.info(data)
-        if data["author"] != "cwa":
-            # only receive caw's eew
-            return
-        eew = self._alerts.get(data["id"])
-        if eew is None:
-            await self.new_alert(data)
-        elif data["serial"] > eew.serial:
-            await self.update_alert(data)
-
-    async def close(self):
-        """Close the websocket"""
-        self._reconnect = False
-        self.__closed = True
-        if self.ws:
-            await self.ws.close()
-
-    def closed(self):
-        """Whether the websocket is closed"""
-        return self.__closed
-
-    async def start(self):
-        """
-        Start the client.
-        Note: This coro won't finish forever until user interrupt it.
-        """
-        self.logger.info("Starting EEW WebSocket Client...")
-        self.on(WebSocketEvent.EEW, self.on_eew)
-        self.run_notification_client()
-        await self.connect()
-
-    def run(self):
-        """
-        Start the client.
-        Note: This is a blocking call. If you want to control your own event loop, use `start` instead.
-        """
-        self.__event_loop = asyncio.get_event_loop()
-        self.__event_loop.create_task(self.start())
-        try:
-            self.__event_loop.run_forever()
-        except KeyboardInterrupt:
-            self.__event_loop.run_until_complete(self.close())
-            self.__event_loop.stop()
-        finally:
-            self.logger.info("EEW WebSocket has been stopped.")
+            self._logger.error(f"Websocket received an error: {e.description or e.message.data}", exc_info=e)

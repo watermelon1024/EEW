@@ -7,8 +7,7 @@ The `register` function is the entry point for registering the client. It create
 See also: https://github.com/watermelon1024/EEW/blob/main/docs/zh-TW/dev/notification.md#註冊客戶端
 """
 
-from ...config import Config
-from ...logging import Logger
+from src import Config, Logger
 
 NAMESPACE = "[custom-notification]"
 "the configuration namespace for [custom notification client]"

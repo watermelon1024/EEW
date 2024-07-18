@@ -1,16 +1,14 @@
 """
 The template for a custom notification client.
+Note: This template is out of date, please wait for the next update.
 
 See also: https://github.com/watermelon1024/EEW/blob/main/docs/zh-TW/dev/notification.md#開發客戶端功能
 """
 
-from ...config import Config
-from ...earthquake.eew import EEW
-from ...logging import Logger
-from ..base import NotificationClient
+from src import EEW, BaseNotificationClient, Config, Logger
 
 
-class CustomNotificationClient(NotificationClient):
+class CustomNotificationClient(BaseNotificationClient):
     """
     Represents a [custom] EEW notification client.
     """
@@ -28,12 +26,12 @@ class CustomNotificationClient(NotificationClient):
         self.config = config
         ...
 
-    async def run(self) -> None:
+    async def start(self) -> None:
         """
         The entrypoint for the notification client.
         If this client doesn't need to run in the event loop, just type `pass` because this method is required.
 
-        Note: DO NOT do any blocking calls to run the otification client.
+        Note: DO NOT do any blocking calls to run the notification client.
         Example:
         ```py
         # Bad
@@ -66,17 +64,6 @@ class CustomNotificationClient(NotificationClient):
         Note: This method should not do any blocking calls.
 
         :param eew: The updated EEW.
-        :type eew: EEW
-        """
-        ...
-
-    async def lift_eew(self, eew: EEW):
-        """
-        If an EEW alert was lifted, this method will be called.
-
-        Note: This method should not do any blocking calls.
-
-        :param eew: The lifted EEW.
         :type eew: EEW
         """
         ...

@@ -1,38 +1,71 @@
 import asyncio
+import logging
+import os
 import random
-import threading
 import time
 
 from aiohttp import web
 
-from src.client.http import API_NODES
-from src.main import main
-
 DEV_SERVER_HOST = "127.0.0.1"
 DEV_SERVER_PORT = 8000
+
+loop = asyncio.new_event_loop()
 
 app = web.Application()
 routes = web.RouteTableDef()
 
 
-def _main_wrapper():
-    global loop
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    API_NODES.clear()
-    API_NODES.append(f"{DEV_SERVER_HOST}:{DEV_SERVER_PORT}")
-    main()
+from src import Client, Config, InterceptHandler, Logging, WebSocketConnectionConfig, WebSocketService
+
+config = Config()
+logger = Logging(
+    retention=config["log"]["retention"],
+    debug_mode=config["debug-mode"],
+    format=config["log"]["format"],
+).get_logger()
+logging.basicConfig(
+    handlers=[InterceptHandler(logger)],
+    level=0 if config["debug-mode"] else logging.INFO,
+    force=True,
+)
+
+key = os.getenv("API_KEY")
+if key:
+    logger.info("API_KEY found, using WebSocket Client")
+    ws_config = WebSocketConnectionConfig(key=key, service=[WebSocketService.EEW, WebSocketService.TREM_EEW])
+
+else:
+    logger.info("API_KEY not found, using HTTP Client")
+    ws_config = None
+
+client = Client(
+    config=config, logger=logger, websocket_config=ws_config, debug=config["debug-mode"], loop=loop
+)
+client._http.DOMAIN = f"{DEV_SERVER_HOST}:{DEV_SERVER_PORT}"
+client._http.API_NODES = [f"http://{DEV_SERVER_HOST}:{DEV_SERVER_PORT}/api/v1"]
+client._http.WS_NODES = [f"ws://{DEV_SERVER_HOST}:{DEV_SERVER_PORT}/websocket"]
 
 
-async def background_task(_):
-    thread = threading.Thread(target=_main_wrapper)
-    thread.daemon = True
-    thread.start()
+async def start_client():
+    await asyncio.sleep(5)
+    client.load_notification_clients("notification")
+    await client.start()
 
 
-app.on_startup.append(background_task)
-app.on_cleanup.append(lambda _: loop.stop())
+async def on_startup(_):
+    global task
+    task = loop.create_task(start_client())
 
+
+async def on_shutdown(_):
+    task.cancel()
+    await task
+
+
+app.on_startup.append(on_startup)
+app.on_shutdown.append(on_shutdown)
+
+# web api
 content = []
 eq_id = 1130699
 
@@ -91,4 +124,4 @@ async def post_earthquake(request):
 app.add_routes(routes)
 
 if __name__ == "__main__":
-    web.run_app(app, host=DEV_SERVER_HOST, port=DEV_SERVER_PORT)
+    web.run_app(app, host=DEV_SERVER_HOST, port=DEV_SERVER_PORT, loop=loop)
