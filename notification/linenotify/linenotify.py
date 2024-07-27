@@ -73,14 +73,14 @@ class LineNotifyClient(BaseNotificationClient):
         if self._region_intensity is not None:
             current_time = int(datetime.now().timestamp())
             if eew.serial <= 1:
-                region_intensity_message = "\n以下僅供參考\n實際以氣象署公布為準\n各地震度|抵達時間:"
+                region_intensity_message = "\n以下僅供參考\n實際以氣象署公布為準\n各地最大震度|抵達時間:"
                 for (city, region), (
                         intensity,
                         s_arrival_time) in self._region_intensity.items():
                     arrival_time = max(s_arrival_time - current_time, 0)
                     region_intensity_message += f"\n{city} {region}:{intensity}\n剩餘{arrival_time}秒抵達"
             else:
-                region_intensity_message = "\n以下僅供參考\n實際以氣象署公布為準\n各地震度更新:"
+                region_intensity_message = "\n以下僅供參考\n實際以氣象署公布為準\n各地最大震度更新:"
                 for (city, region), (
                         intensity,
                         s_arrival_time) in self._region_intensity.items():
