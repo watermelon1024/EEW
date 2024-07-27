@@ -40,6 +40,7 @@ class EarthquakeData:
         "_p_arrival_distance_interp_func",
         "_s_arrival_distance_interp_func",
         "_map",
+        "_intensity_calculated",
     )
 
     def __init__(
@@ -70,6 +71,7 @@ class EarthquakeData:
         self._time = time
         self._max_intensity = max_intensity
         self._model = get_wave_model(depth)
+        self._intensity_calculated = asyncio.Event()
         self._calc_task: asyncio.Future = None
         self._city_max_intensity: dict[str, RegionExpectedIntensity] = None
         self._expected_intensity: dict[int, RegionExpectedIntensity] = None
@@ -189,10 +191,12 @@ class EarthquakeData:
                 ]
             )
         }
+        self._intensity_calculated.set()
         return self._expected_intensity
 
     def calc_all_data(self):
         try:
+            self._intensity_calculated.clear()
             self.calc_expected_intensity()
             self.map.draw()
         except asyncio.CancelledError:
