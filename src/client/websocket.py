@@ -229,7 +229,7 @@ class ExpTechWebSocket(aiohttp.ClientWebSocketResponse):
         :raise WebSocketClosure: If the websocket is closed.
         """
 
-        msg = await self.receive()
+        msg = await self.receive(timeout=90)
         if msg.type is aiohttp.WSMsgType.TEXT:
             return msg
         elif msg.type is aiohttp.WSMsgType.BINARY:
