@@ -125,7 +125,7 @@ class LineNotifyClient(BaseNotificationClient):
 
             async with session.post(url=Line_notify_api,
                                     data=form) as response:
-                if response.status != 200:
+                if response.ok:
                     raise aiohttp.ClientResponseError(response.request_info,
                                                       status=response.status,
                                                       history=response.history,
