@@ -6,7 +6,7 @@ import aiohttp
 
 from src import EEW, BaseNotificationClient, Config, Logger
 
-Line_notify_api = "https://notify-api.line.me/api/notify"
+LINE_NOTIFY_API = "https://notify-api.line.me/api/notify"
 
 
 class LineNotifyClient(BaseNotificationClient):
