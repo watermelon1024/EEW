@@ -123,7 +123,7 @@ class LineNotifyClient(BaseNotificationClient):
                 form.add_field('message', "\n各地震度(僅供參考)\n以氣象署公布為準")
                 form.add_field('imageFile', image)
 
-            async with session.post(url=Line_notify_api,
+            async with session.post(url=LINE_NOTIFY_API,
                                     data=form) as response:
                 if response.ok:
                     raise aiohttp.ClientResponseError(response.request_info,
