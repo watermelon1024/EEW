@@ -155,6 +155,7 @@ class Client:
                 if not self._ws or self._ws.closed:
                     self.logger.debug("Connecting to WebSocket...")
                     self._ws = await self._http.ws_connect(self)
+                    await self._ws.wait_until_ready()
                 if not self.__ready.is_set():
                     self.logger.info(
                         "ExpTech WebSocket is ready\n"
