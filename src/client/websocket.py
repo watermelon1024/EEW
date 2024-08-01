@@ -140,6 +140,10 @@ class ExpTechWebSocket(aiohttp.ClientWebSocketResponse):
         self._logger.debug(f"Websocket received: {msg}")
         return msg
 
+    async def debug_send_str(self, data: str, compress: int | None = None) -> None:
+        self._logger.debug(f"Websocket sending: {data}")
+        return await super().send_str(data, compress)
+
     @classmethod
     async def connect(cls, client: "Client", **kwargs):
         """
@@ -152,6 +156,7 @@ class ExpTechWebSocket(aiohttp.ClientWebSocketResponse):
         self.subscribed_services = []
         if client.debug_mode:
             self.receive = self.debug_receive
+            self.send_str = self.debug_send_str
 
         self.__wait_until_ready = asyncio.Event()
         await self.verify()
