@@ -139,8 +139,8 @@ class Client:
     async def connect(self):
         """Connect to ExpTech API and start receiving data"""
         if self.websocket_config:
-            await self._http.test_ws_latencies()
-            self._http.switch_ws_node("fastest")
+            # await self._http.test_ws_latencies()
+            # self._http.switch_ws_node("fastest")
             await self.ws_connect()
         else:
             await self._get_eew_loop()
@@ -155,7 +155,6 @@ class Client:
                 if not self._ws or self._ws.closed:
                     self.logger.debug("Connecting to WebSocket...")
                     self._ws = await self._http.ws_connect(self)
-                    await self._ws.wait_until_ready()
                 if not self.__ready.is_set():
                     self.logger.info(
                         "ExpTech WebSocket is ready\n"
@@ -241,8 +240,8 @@ class Client:
         self.logger.info("Starting ExpTech API Client...")
 
         # test latencies
-        await self._http.test_api_latencies()
-        self._http.switch_api_node("fastest")
+        # await self._http.test_api_latencies()
+        # self._http.switch_api_node("fastest")
 
         self.add_listener(WebSocketEvent.EEW.value, self.on_eew)
         for client in self.notification_client:

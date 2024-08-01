@@ -159,13 +159,14 @@ class ExpTechWebSocket(aiohttp.ClientWebSocketResponse):
             self.send_str = self.debug_send_str
 
         self.__wait_until_ready = asyncio.Event()
-        # await self.verify()
+        while not self.__wait_until_ready.is_set():
+            await self.pool_event()
 
         return self
 
-    async def start(self):
+    async def send_verify(self):
         """
-        Send the start signal to the websocket.
+        Send the verify data to the websocket.
         """
         data = self.config.to_dict()
         data["type"] = "start"
@@ -178,7 +179,7 @@ class ExpTechWebSocket(aiohttp.ClientWebSocketResponse):
         :return the subscribed services.
         :rtype: list[SupportedService]
         """
-        await self.start()
+        await self.send_verify()
         data = await asyncio.wait_for(self.wait_for_verify(), timeout=60)
         self.subscribed_services = data["list"]
         self.__wait_until_ready.set()
@@ -198,6 +199,8 @@ class ExpTechWebSocket(aiohttp.ClientWebSocketResponse):
         while True:
             msg = await self.receive_and_check()
             data = json.loads(msg.data)
+            if data.get("type") == WebSocketEvent.VERIFY.value:
+                await self.send_verify()
             if data.get("type") != WebSocketEvent.INFO.value:
                 continue
 
