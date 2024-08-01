@@ -159,7 +159,7 @@ class ExpTechWebSocket(aiohttp.ClientWebSocketResponse):
             self.send_str = self.debug_send_str
 
         self.__wait_until_ready = asyncio.Event()
-        await self.verify()
+        # await self.verify()
 
         return self
 
