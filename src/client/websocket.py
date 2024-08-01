@@ -159,8 +159,9 @@ class ExpTechWebSocket(aiohttp.ClientWebSocketResponse):
             self.send_str = self.debug_send_str
 
         self.__wait_until_ready = asyncio.Event()
-        while not self.__wait_until_ready.is_set():
-            await self.pool_event()
+        await self.verify()
+        # while not self.__wait_until_ready.is_set():
+        #     await self.pool_event()
 
         return self
 
@@ -201,7 +202,7 @@ class ExpTechWebSocket(aiohttp.ClientWebSocketResponse):
             data = json.loads(msg.data)
             if data.get("type") == WebSocketEvent.VERIFY.value:
                 await self.send_verify()
-            if data.get("type") != WebSocketEvent.INFO.value:
+            elif data.get("type") != WebSocketEvent.INFO.value:
                 continue
 
             data = data["data"]
