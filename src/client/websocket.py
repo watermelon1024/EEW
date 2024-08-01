@@ -202,7 +202,7 @@ class ExpTechWebSocket(aiohttp.ClientWebSocketResponse):
             data = json.loads(msg.data)
             if data.get("type") == WebSocketEvent.VERIFY.value:
                 await self.send_verify()
-            elif data.get("type") != WebSocketEvent.INFO.value:
+            if data.get("type") != WebSocketEvent.INFO.value:
                 continue
 
             data = data["data"]
