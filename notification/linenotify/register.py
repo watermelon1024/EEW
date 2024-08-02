@@ -23,4 +23,5 @@ def register(config: Config, logger: Logger) -> None:
         return
 
     from .linenotify import LineNotifyClient
+
     return LineNotifyClient(logger, config, notify_token)
