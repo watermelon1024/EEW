@@ -117,13 +117,15 @@ class HTTPClient:
                 resp = await r.json() if json else await r.text()
                 self._logger.debug(f"{method} {url} receive {r.status}: {resp}")
                 return resp
-        except aiohttp.ContentTypeError:
-            self._logger.debug(f"Fail to decode JSON: {await r.text()}")
-            raise
         except Exception as e:
-            self._logger.debug(f"Fail to {method} {url}: {e}")
+            if isinstance(e, aiohttp.ContentTypeError):
+                self._logger.debug(
+                    f"Fail to decode JSON when {method} {url} (receive {r.status}): {await r.text()}"
+                )
+            else:
+                self._logger.debug(f"Fail to {method} {url}: {e}")
+            self.switch_api_node()
             if retry > 0:
-                self.switch_api_node()
                 await asyncio.sleep(1)
                 return await self.request(method, path, json=json, retry=retry - 1, **kwargs)
             raise
