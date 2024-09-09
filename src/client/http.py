@@ -31,8 +31,9 @@ class HTTPClient:
         self.DOMAIN = domain
         self.__API_VERSION = api_version
         self.API_NODES = [
-            f"https://api-{i}.{self.DOMAIN}/api/v{api_version}" for i in range(1, 3)
-        ]  # api-1 ~ api-2
+            *(f"https://api-{i}.{self.DOMAIN}/api/v{api_version}" for i in range(1, 3)),  # api-1 ~ api-2
+            *(f"https://lb-{i}.{self.DOMAIN}/api/v{api_version}" for i in range(1, 5)),  # lb-1 ~ lb-4
+        ]
         self.__base_url = self.API_NODES[0]
         self.node_latencies = [(node, float("inf")) for node in self.API_NODES]
         self.__current_node_index = 0
@@ -42,7 +43,10 @@ class HTTPClient:
         self._current_ws_node_index = 0
 
         self._loop = loop or asyncio.get_event_loop()
-        self._session = session or aiohttp.ClientSession(loop=self._loop)
+        self._session = session or aiohttp.ClientSession(
+            loop=self._loop,
+            headers={"User-Agent": "EEW/1.0.0 (https://github.com/watermelon1024/EEW)"},
+        )
         self._session._ws_response_class = ExpTechWebSocket
 
     # http api node
