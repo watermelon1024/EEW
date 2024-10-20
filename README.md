@@ -31,7 +31,9 @@
 
  ---
 
- A simple, powerful, free, and easily extensible earthquake early warning notification system!
+ A simple, powerful, free, and easily extensible multi-platform earthquake early warning notification system!
+
+ ---
 
 > [!IMPORTANT]
 > This project uses the API provided by [ExpTech](https://exptech.com.tw). Please adhere to their [Terms of Service](https://exptech.com.tw/tos).
@@ -120,7 +122,7 @@
 
 # Bug Report & Issues
 
-If you encounter any issues or have questions about the project, please feel free to open an issue on the [GitHub Issues page][issues-url]
+If you encounter any issues or have questions about the project, please feel free to open an issue on the [GitHub Issues page][issues-url].
 
 1. Search through the existing issues to avoid duplicates.
 2. Provide a clear and concise description of the problem, including steps to reproduce it.
@@ -132,4 +134,4 @@ Your feedback helps us improve the system for everyone!
 
 # Custom Notification Client
 If you haven't found an existing client that suits your needs, you can create a custom notification client for yourself!\
-See the [development documentation](/docs/en-US/dev/notification.md).
+See also: [development documentation](/docs/en-US/dev/notification.md).
