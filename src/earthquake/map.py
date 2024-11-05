@@ -87,27 +87,16 @@ class Map:
             self.init_figure()
         # map boundary
         zoom = 1  # TODO: change zoom according to magnitude
-        mid_lon, mid_lat = (TAIWAN_CENTER.lon +
-                            self._eq.lon) / 2, (TAIWAN_CENTER.lat + self._eq.lat) / 2
+        mid_lon, mid_lat = (TAIWAN_CENTER.lon + self._eq.lon) / 2, (TAIWAN_CENTER.lat + self._eq.lat) / 2
         lon_boundary, lat_boundary = 1.6 * zoom, 2.4 * zoom
         min_lon, max_lon = mid_lon - lon_boundary, mid_lon + lon_boundary
         min_lat, max_lat = mid_lat - lat_boundary, mid_lat + lat_boundary
         self.ax.set_xlim(min_lon, max_lon)
         self.ax.set_ylim(min_lat, max_lat)
         TOWN_DATA.plot(ax=self.ax, facecolor="lightgrey", edgecolor="black", linewidth=0.22 / zoom)
-
-        intensity_patches = {}
         for code, region in self._eq._expected_intensity.items():
-            intensity = region.intensity.value
-            if intensity > 0:
-                if intensity not in intensity_patches:
-                    intensity_patches[intensity] = []
-                intensity_patches[intensity].append(TOWN_RANGE[code])
-
-        for intensity, patches in intensity_patches.items():
-            for patch in patches:
-                patch.plot(ax=self.ax, color=INTENSITY_COLOR[intensity])
-
+            if region.intensity.value > 0:
+                TOWN_RANGE[code].plot(ax=self.ax, color=INTENSITY_COLOR[region.intensity.value])
         COUNTRY_DATA.plot(ax=self.ax, edgecolor="black", facecolor="none", linewidth=0.64 / zoom)
         # draw epicenter
         self.ax.scatter(
