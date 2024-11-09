@@ -54,7 +54,8 @@ class LineNotifyClient(BaseNotificationClient):
             if intensity.intensity.value > 0:
                 key = (city, intensity.region.name)
                 intensity_dict[key] = (
-                    intensity.intensity.display, int(intensity.distance.s_arrival_time.timestamp())
+                    intensity.intensity.display,
+                    int(intensity.distance.s_arrival_time.timestamp()),
                 )
 
         return intensity_dict
@@ -76,7 +77,7 @@ class LineNotifyClient(BaseNotificationClient):
 
             _headers = {
                 "Content-Type": "application/x-www-form-urlencoded",
-                "Authorization": f"Bearer {self._notify_token}"
+                "Authorization": f"Bearer {self._notify_token}",
             }
             async with aiohttp.ClientSession(headers=_headers) as session:
                 await self._post_line_api(session, intensity_msg=region_intensity_message)
@@ -103,11 +104,7 @@ class LineNotifyClient(BaseNotificationClient):
             self.logger.exception(f"Failed to send image alert to Line-Notify: {e}")
 
     async def _post_line_api(
-        self,
-        session: aiohttp.ClientSession,
-        img=None,
-        msg: str = None,
-        intensity_msg: str = None
+        self, session: aiohttp.ClientSession, img=None, msg: str = None, intensity_msg: str = None
     ) -> None:
         try:
             # 確認img是否有和其他msg一組
@@ -116,11 +113,11 @@ class LineNotifyClient(BaseNotificationClient):
 
             form = aiohttp.FormData()
             if msg:
-                form.add_field('message', msg)
+                form.add_field("message", msg)
             elif intensity_msg:
-                form.add_field('message', intensity_msg)
+                form.add_field("message", intensity_msg)
             if img:
-                form.add_field('imageFile', img)
+                form.add_field("imageFile", img)
 
             async with session.post(url=LINE_NOTIFY_API, data=form) as response:
                 if response.ok:
@@ -131,7 +128,7 @@ class LineNotifyClient(BaseNotificationClient):
                         response.request_info,
                         status=response.status,
                         history=response.history,
-                        message=await response.text()
+                        message=await response.text(),
                     )
         except ValueError as e:
             self.logger.error(f"ValueError: {e}")
