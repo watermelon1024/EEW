@@ -38,10 +38,10 @@ class LineNotification(BaseNotificationClient):
             # TODO: check channel status
             self.notification_channels.append(channel_id)
 
-    def _flex_message(self, eew: EEW):
+    def _flex_message(self, eew: EEW, is_update: bool = False):
         eq = eew.earthquake
         time_str = eq.time.strftime("%H:%M:%S")
-        summary = f"地震速報：{time_str}於{eq.location.display_name or eq.location}發生規模 M{eq.mag} 地震"
+        summary = f"{'(更新報)' if is_update else ''}地震速報：{time_str}於{eq.location.display_name or eq.location}發生規模 {eq.mag} 地震"
         image = f"https://static-maps.yandex.ru/1.x/?ll={eq.lon},{eq.lat}&z=10&l=map&size=650,450&pt={eq.lon},{eq.lat},round"
         provider = f"{eew.provider.display_name} ({eew.provider.name})"
         serial = f"編號：{eew.id} (第{eew.serial}報)"
@@ -188,7 +188,7 @@ class LineNotification(BaseNotificationClient):
             return
 
         headers = {"Content-Type": "application/json", "Authorization": f"Bearer {self.__access_token}"}
-        msg = self._flex_message(eew)
+        msg = self._flex_message(eew, is_update=True)
         async with aiohttp.ClientSession(headers=headers) as session:
             await asyncio.gather(
                 *(self._send_message(session, channel_id, msg) for channel_id in self.notification_channels)
