@@ -27,6 +27,10 @@ class LineNotifyClient(BaseNotificationClient):
         self.logger = logger
         self.config = config
         self._notify_token = notify_token
+        logger.warning(
+            "LINE Notify will end its services on 2025/04/01. "
+            "See also: https://notify-bot.line.me/closing-announce"
+        )
 
     def get_eew_message(self, eew: EEW):
         # 取得EEW訊息並排版
