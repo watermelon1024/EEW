@@ -1,17 +1,18 @@
 import io
+import warnings
+from collections import defaultdict
 from typing import TYPE_CHECKING
 
-import matplotlib.pyplot as plt
-
-if TYPE_CHECKING:
-    from earthquake.eew import EarthquakeData
-
-import warnings
-
+import geopandas as gpd
 import matplotlib.image as mpimg
+import matplotlib.pyplot as plt
+import pandas as pd
 from matplotlib.offsetbox import AnnotationBbox, OffsetImage
 
 from .location import COUNTRY_DATA, TAIWAN_CENTER, TOWN_DATA, TOWN_RANGE
+
+if TYPE_CHECKING:
+    from earthquake.eew import EarthquakeData
 
 plt.ioff()
 plt.switch_backend("AGG")
@@ -94,9 +95,18 @@ class Map:
         self.ax.set_xlim(min_lon, max_lon)
         self.ax.set_ylim(min_lat, max_lat)
         TOWN_DATA.plot(ax=self.ax, facecolor="lightgrey", edgecolor="black", linewidth=0.22 / zoom)
+        # group geodata by quake intensity
+        region_patch: defaultdict[int, list[pd.Series | pd.DataFrame]] = defaultdict(list)
         for code, region in self._eq._expected_intensity.items():
             if region.intensity.value > 0:
-                TOWN_RANGE[code].plot(ax=self.ax, color=INTENSITY_COLOR[region.intensity.value])
+                region_patch[region.intensity.value].append(TOWN_RANGE[code])
+        # combine geodata and plot them
+        for intensity, gdfs in region_patch.items():
+            combined_gdf = gpd.GeoDataFrame(pd.concat(gdfs, ignore_index=True))
+            combined_gdf["geometry"] = combined_gdf.buffer(0.001)
+            gdf_merged = gpd.GeoDataFrame(geometry=[combined_gdf.unary_union])
+            gdf_merged.plot(ax=self.ax, color=INTENSITY_COLOR[intensity], edgecolor=None)
+
         COUNTRY_DATA.plot(ax=self.ax, edgecolor="black", facecolor="none", linewidth=0.64 / zoom)
         # draw epicenter
         self.ax.scatter(
