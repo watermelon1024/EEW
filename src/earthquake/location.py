@@ -204,6 +204,7 @@ REGIONS_GROUP_BY_CITY: dict[str, list[RegionLocation]] = _group_region_by_city(R
 with open("asset/town_map.json", "r", encoding="utf-8") as f:
     _raw_geo_data = json.load(f)["features"]
     TOWN_DATA: gpd.GeoDataFrame = gpd.GeoDataFrame.from_features(_raw_geo_data)
+    TOWN_DATA["geometry"] = TOWN_DATA["geometry"].simplify(tolerance=0.008)
     TOWN_RANGE = {
         int(d["id"]): TOWN_DATA[TOWN_DATA["TOWNCODE"] == d["properties"]["TOWNCODE"]]
         for d in _raw_geo_data
