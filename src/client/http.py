@@ -21,7 +21,7 @@ class HTTPClient:
         debug: bool,
         *,
         domain: str = "exptech.dev",
-        api_version: int = 1,
+        api_version: int = 2,
         session: aiohttp.ClientSession = None,
         loop: asyncio.AbstractEventLoop = None,
     ):
