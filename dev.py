@@ -42,8 +42,10 @@ client = Client(
     config=config, logger=logger, websocket_config=ws_config, debug=config["debug-mode"], loop=loop
 )
 client._http.DOMAIN = f"{DEV_SERVER_HOST}:{DEV_SERVER_PORT}"
-client._http.API_NODES = [f"http://{DEV_SERVER_HOST}:{DEV_SERVER_PORT}/api/v1"]
-client._http.WS_NODES = [f"ws://{DEV_SERVER_HOST}:{DEV_SERVER_PORT}/websocket"]
+client._http.API_NODES[:] = [f"http://{DEV_SERVER_HOST}:{DEV_SERVER_PORT}/api/v2"]
+client._http.WS_NODES[:] = [f"ws://{DEV_SERVER_HOST}:{DEV_SERVER_PORT}/websocket"]
+client._http.node_latencies = [(node, float("inf")) for node in client._http.API_NODES]
+client._http.switch_api_node()
 
 
 async def start_client():
@@ -110,7 +112,7 @@ async def update_earthquake_data():
     content.pop(0)
 
 
-@routes.get("/api/v1/eq/eew")
+@routes.get("/api/v2/eq/eew")
 async def get_earthquake(request):
     return web.json_response(content)
 
