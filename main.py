@@ -1,9 +1,11 @@
 import logging
 import os
+import time
 
 from dotenv import load_dotenv
 
-load_dotenv(override=True)
+load_dotenv()
+time.tzset()
 
 
 def main():
