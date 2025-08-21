@@ -1,5 +1,5 @@
 import asyncio
-from datetime import datetime
+from datetime import datetime, timezone
 
 from ..utils import MISSING
 from .location import REGIONS_GROUP_BY_CITY, EarthquakeLocation, RegionLocation
@@ -155,12 +155,14 @@ class EarthquakeData:
         return self._map
 
     @classmethod
-    def from_dict(cls, data: dict) -> "EarthquakeData":
+    def from_dict(cls, data: dict, timezone: timezone = None) -> "EarthquakeData":
         """
         Create an earthquake data object from the dictionary.
 
         :param data: The data of the earthquake from the api.
         :type data: dict
+        :param timezone: The specific timezone.
+        :type timezone: timezone | None
         :return: The earthquake data object.
         :rtype: EarthquakeData
         """
@@ -168,7 +170,7 @@ class EarthquakeData:
             location=EarthquakeLocation(data["lon"], data["lat"], data.get("loc", MISSING)),
             magnitude=data["mag"],
             depth=data["depth"],
-            time=datetime.fromtimestamp(data["time"] / 1000),
+            time=datetime.fromtimestamp(data["time"] / 1000, tz=timezone),
             max_intensity=Intensity(i) if (i := data.get("max")) is not None else MISSING,
         )
 
@@ -329,12 +331,14 @@ class EEW:
         return self._time
 
     @classmethod
-    def from_dict(cls, data: dict) -> "EEW":
+    def from_dict(cls, data: dict, timezone: timezone = None) -> "EEW":
         """
         Create an EEW object from the data dictionary.
 
         :param data: The data of the earthquake from the api.
         :type data: dict
+        :param timezone: The specific timezone.
+        :type timezone: timezone | None
         :return: The EEW object.
         :rtype: EEW
         """
@@ -342,7 +346,7 @@ class EEW:
             id=data["id"],
             serial=data["serial"],
             final=bool(data["final"]),
-            earthquake=EarthquakeData.from_dict(data=data["eq"]),
+            earthquake=EarthquakeData.from_dict(data=data["eq"], timezone=timezone),
             provider=Provider(data["author"]),
-            time=datetime.fromtimestamp(data["time"] / 1000),
+            time=datetime.fromtimestamp(data["time"] / 1000, tz=timezone),
         )

@@ -7,6 +7,7 @@ from typing import Any, Optional
 
 import aiohttp
 from cachetools import TTLCache
+from pytz import UnknownTimeZoneError, timezone
 
 from ..config import Config
 from ..earthquake.eew import EEW
@@ -58,17 +59,27 @@ class Client:
         self.websocket_config = websocket_config
 
         self.alerts = TTLCache(maxsize=float("inf"), ttl=60 * 60)  # 1hr
-        eew_source: dict = config.get("eew_source")
+        eew_source: dict = config.get("eew-source") or config.get("eew_source")
         self.__eew_source = (
             None if eew_source.get("all") else [source for source, enable in eew_source.items() if enable]
         )
+        _tz = config.get("timezone")
+        if not _tz:
+            self.logger.warning("No timezone specified, using system default timezone")
+            self._tz = None
+        else:
+            try:
+                self._tz = timezone(_tz)
+            except UnknownTimeZoneError:
+                self.logger.warning(f"Invalid timezone specified: {_tz}, using system default timezone")
+                self._tz = None
         self.notification_client = []
         self.event_handlers = defaultdict(list)
         self.__ready = asyncio.Event()
 
     async def new_alert(self, data: dict):
         """Send a new EEW alert"""
-        eew = EEW.from_dict(data)
+        eew = EEW.from_dict(data, self._tz)
         self.alerts[eew.id] = eew
 
         self.logger.info(
@@ -90,7 +101,7 @@ class Client:
 
     async def update_alert(self, data: dict):
         """Update an existing EEW alert"""
-        eew = EEW.from_dict(data)
+        eew = EEW.from_dict(data, self._tz)
         old_eew = self.alerts.get(eew.id)
         self.alerts[eew.id] = eew
 

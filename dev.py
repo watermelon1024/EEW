@@ -5,6 +5,9 @@ import random
 import time
 
 from aiohttp import web
+from dotenv import load_dotenv
+
+load_dotenv()
 
 DEV_SERVER_HOST = "127.0.0.1"
 DEV_SERVER_PORT = 8000

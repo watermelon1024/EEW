@@ -1,13 +1,14 @@
 # configuration
 
 debug-mode = false
+timezone = "Asia/Taipei"
 
 [log]
 # days of logs to keep
 retention = 30
 format = "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | <level>{level: <8}</level> | <level>{message}</level>"
 
-[eew_source] # 地震速報接收來源
+[eew-source] # 地震速報接收來源
 cwa = true    # 中央氣象署
 trem = true   # TREM 臺灣即時地震監測
 kam = false   # 기상청 날씨누리
