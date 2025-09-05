@@ -37,7 +37,7 @@ class HTTPClient:
         self.__base_url = self.API_NODES[0]
         self.node_latencies = [(node, float("inf")) for node in self.API_NODES]
         self.__current_node_index = 0
-        self.WS_NODES = [f"wss://lb-{i}.{self.DOMAIN}/websocket" for i in range(1, 5)]  # lb-1 ~ lb-4
+        self.WS_NODES = [f"wss://lb-{i}.{self.DOMAIN}/ws" for i in range(1, 5)]  # lb-1 ~ lb-4
         self._current_ws_node = self.WS_NODES[0]
         self.ws_node_latencies = [(node, float("inf")) for node in self.WS_NODES]
         self._current_ws_node_index = 0

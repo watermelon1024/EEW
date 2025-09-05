@@ -1,7 +1,7 @@
 import asyncio
 import json
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Optional, Union
+from typing import TYPE_CHECKING, Any, Optional, Self, Union
 
 import aiohttp
 
@@ -72,22 +72,20 @@ class WebSocketEvent(Enum):
 class WebSocketService(Enum):
     """Represent the supported websokcet service"""
 
-    REALTIME_STATION = "trem.rts"
+    ALL = "websocket.*"
+    "所有服務"
+    TREM_ALL = "websocket.trem.*"
+    "TREM 所有服務"
+    REALTIME_STATION = "websocket.trem.rts"
     "即時地動資料"
-    REALTIME_WAVE = "trem.rtw"
-    "即時地動波形圖資料"
-    EEW = "websocket.eew"
-    "地震速報資料"
-    TREM_EEW = "trem.eew"
+    TREM_EEW = "websocket.trem.eew"
     "TREM 地震速報資料"
-    REPORT = "websocket.report"
+    EEW = "websocket.eq.eew"
+    "地震速報資料"
+    REPORT = "websocket.eq.report"
     "中央氣象署地震報告資料"
-    TSUNAMI = "websocket.tsunami"
-    "中央氣象署海嘯資訊資料"
-    CWA_INTENSITY = "cwa.intensity"
-    "中央氣象署震度速報資料"
-    TREM_INTENSITY = "trem.intensity"
-    "TREM 震度速報資料"
+    EQ_ALL = "websocket.eq.*"
+    "地震所有服務"
 
 
 class WebSocketConnectionConfig:
@@ -115,8 +113,8 @@ class WebSocketConnectionConfig:
 
     def to_dict(self):
         return {
-            "key": self.key,
-            "service": [service.value for service in self.service],
+            "token": self.key,
+            "topic": [service.value for service in self.service],
             "config": self.config,
         }
 
@@ -149,7 +147,7 @@ class ExpTechWebSocket(aiohttp.ClientWebSocketResponse):
         """
         Connect to the websocket.
         """
-        self: cls = await client._http._session.ws_connect(client._http._current_ws_node, **kwargs)
+        self: Self = await client._http._session.ws_connect(client._http._current_ws_node, **kwargs)
         self.__client = client
         self._logger = client.logger
         self.config = client.websocket_config
@@ -182,7 +180,7 @@ class ExpTechWebSocket(aiohttp.ClientWebSocketResponse):
         """
         await self.send_verify()
         data = await asyncio.wait_for(self.wait_for_verify(), timeout=60)
-        self.subscribed_services = data["list"]
+        self.subscribed_services = data["topic"]["success"]
         self.__wait_until_ready.set()
         return self.subscribed_services
 
@@ -205,23 +203,25 @@ class ExpTechWebSocket(aiohttp.ClientWebSocketResponse):
             if data.get("type") != WebSocketEvent.INFO.value:
                 continue
 
-            data = data["data"]
-            message = data.get("message")
-            code = data.get("code")
-            if code == 200:
+            event = data.get("event")
+            if event == "connect":
                 # subscribe successfully
-                return data
-            elif code == 400:
-                # api key in used
-                raise WebSocketReconnect("API key is already in used", reopen=True)
-            elif code == 401:
-                # no api key or invalid api key
-                raise AuthorizationFailed(message)
-            elif code == 403:
-                # vip membership expired
-                raise AuthorizationFailed(message)
-            elif code == 429:
-                raise WebSocketReconnect("Rate limit exceeded", reopen=True)
+                return data["topic"]
+
+            reason: str = data.get("msg")
+            if (
+                reason == "Token has been revoked"
+                or reason == "Invalid message format"
+                or reason == "Token required"
+                or reason == "Token invalid"
+            ):
+                raise AuthorizationFailed(reason)
+            elif reason.startswith(("Monthly calls quota exceeded", "Monthly bytes quota exceeded")):
+                raise WebSocketReconnect(f"Rate limit exceeded: {reason}", reopen=True)
+            elif reason == "Server error":
+                raise WebSocketReconnect("Server Error", reopen=True)
+            else:
+                raise WebSocketException(msg)
 
     async def wait_until_ready(self):
         """Wait until websocket client is ready"""
