@@ -4,11 +4,12 @@ FROM base AS builder
 WORKDIR /EEW
 
 RUN apk add --no-cache \
+  build-base \
+  cmake \
+  python3-dev \
   musl-dev \
   libffi-dev \
   gdal-dev \
-  gcc \
-  g++ \
   geos-dev \
   proj \
   proj-dev \
