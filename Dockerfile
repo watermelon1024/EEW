@@ -1,4 +1,4 @@
-FROM python:3.12.3-alpine3.20 AS base
+FROM python:3.12-alpine AS base
 
 FROM base AS builder
 WORKDIR /EEW
@@ -16,7 +16,8 @@ RUN apk add --no-cache \
   postgresql-dev
 
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
+    pip install --no-cache-dir -r requirements.txt
 
 FROM base
 WORKDIR /EEW
