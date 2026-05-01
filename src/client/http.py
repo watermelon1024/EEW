@@ -31,7 +31,7 @@ class HTTPClient:
         self.DOMAIN = domain
         self.__API_VERSION = api_version
         self.API_NODES = [
-            *(f"https://api-{i}.{self.DOMAIN}/api/v{api_version}" for i in range(1, 3)),  # api-1 ~ api-2
+            f"https://api.core.exptech.dev/api/v{api_version}",  # api.core
             *(f"https://lb-{i}.{self.DOMAIN}/api/v{api_version}" for i in range(1, 5)),  # lb-1 ~ lb-4
         ]
         self.__base_url = self.API_NODES[0]
