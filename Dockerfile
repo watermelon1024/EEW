@@ -1,31 +1,39 @@
-FROM python:3.12-alpine AS base
-
-FROM base AS builder
+FROM python:3.12-slim AS builder
 WORKDIR /EEW
 
-RUN apk add --no-cache \
-  build-base \
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+  build-essential \
   cmake \
-  python3-dev \
-  musl-dev \
   libffi-dev \
-  gdal-dev \
-  geos-dev \
-  proj \
-  proj-dev \
-  proj-util \
-  postgresql-dev
+  libgdal-dev \
+  libgeos-dev \
+  libproj-dev \
+  libpq-dev \
+  && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
-RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
-    pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --upgrade pip wheel && \
+  pip install --no-cache-dir -r requirements.txt
 
-FROM base
+FROM python:3.12-slim
 WORKDIR /EEW
 
-ENV PROJ_DATA=/usr/share/proj
-RUN apk add --no-cache geos proj
-COPY --from=builder /usr/local/lib/python3.12 /usr/local/lib/python3.12
+ENV PYTHONDONTWRITEBYTECODE=1 \
+  PYTHONUNBUFFERED=1 \
+  PROJ_DATA=/usr/share/proj \
+  PATH="/opt/venv/bin:$PATH"
+
+RUN apt-get update && \
+  apt-get install -y --no-install-recommends \
+  libgeos-c1v5 \
+  libproj22 \
+  libpq5 \
+  && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /opt/venv /opt/venv
 
 COPY . .
 
