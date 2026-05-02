@@ -29,7 +29,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 RUN apt-get update && \
   apt-get install -y --no-install-recommends \
   libgeos-c1v5 \
-  libproj22 \
+  libproj25 \
   libpq5 \
   && rm -rf /var/lib/apt/lists/*
 
